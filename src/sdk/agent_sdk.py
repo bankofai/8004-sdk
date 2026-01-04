@@ -3,18 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .contract_adapter import ContractAdapter, DummyContractAdapter
-from .signer import Signer, SimpleSigner
-from .utils import canonical_json, sha256_hex
+from .contract_adapter import ContractAdapter, DummyContractAdapter, TronContractAdapter
+from .signer import Signer, SimpleSigner, TronSigner
+from .utils import canonical_json, keccak256_hex, keccak256_bytes
 
 
 @dataclass
 class SDKConfig:
     rpc_url: str = "https://nile.trongrid.io"
-    network: str = "nile"
-    contract_address: str = "TF..."
+    network: str = "tron:nile"
     timeout: int = 10
     retry: int = 2
+    identity_registry: Optional[str] = None
+    validation_registry: Optional[str] = None
+    reputation_registry: Optional[str] = None
 
 
 class AgentSDK:
@@ -23,7 +25,9 @@ class AgentSDK:
         private_key: Optional[str] = None,
         rpc_url: Optional[str] = None,
         network: Optional[str] = None,
-        contract_address: Optional[str] = None,
+        identity_registry: Optional[str] = None,
+        validation_registry: Optional[str] = None,
+        reputation_registry: Optional[str] = None,
         signer: Optional[Signer] = None,
         contract_adapter: Optional[ContractAdapter] = None,
     ) -> None:
@@ -32,15 +36,30 @@ class AgentSDK:
             self.config.rpc_url = rpc_url
         if network is not None:
             self.config.network = network
-        if contract_address is not None:
-            self.config.contract_address = contract_address
+        if identity_registry is not None:
+            self.config.identity_registry = identity_registry
+        if validation_registry is not None:
+            self.config.validation_registry = validation_registry
+        if reputation_registry is not None:
+            self.config.reputation_registry = reputation_registry
 
         if signer is None:
-            signer = SimpleSigner(private_key=private_key)
+            if self.config.network.startswith("tron") and private_key:
+                signer = TronSigner(private_key=private_key.replace("0x", ""))
+            else:
+                signer = SimpleSigner(private_key=private_key)
         self.signer = signer
 
         if contract_adapter is None:
-            contract_adapter = DummyContractAdapter()
+            if self.config.network.startswith("tron"):
+                contract_adapter = TronContractAdapter(
+                    rpc_url=self.config.rpc_url,
+                    identity_registry=self.config.identity_registry,
+                    validation_registry=self.config.validation_registry,
+                    reputation_registry=self.config.reputation_registry,
+                )
+            else:
+                contract_adapter = DummyContractAdapter()
         self.contract_adapter = contract_adapter
 
     def validation_request(
@@ -53,7 +72,7 @@ class AgentSDK:
     ) -> str:
         signer = signer or self.signer
         params = [validator_addr, agent_id, request_uri, request_hash]
-        return self.contract_adapter.send("validationRequest", params, signer)
+        return self.contract_adapter.send("validation", "validationRequest", params, signer)
 
     def validation_response(
         self,
@@ -66,7 +85,7 @@ class AgentSDK:
     ) -> str:
         signer = signer or self.signer
         params = [request_hash, response, response_uri, response_hash, tag]
-        return self.contract_adapter.send("validationResponse", params, signer)
+        return self.contract_adapter.send("validation", "validationResponse", params, signer)
 
     def submit_reputation(
         self,
@@ -81,7 +100,7 @@ class AgentSDK:
     ) -> str:
         signer = signer or self.signer
         params = [agent_id, score, tag1, tag2, fileuri, filehash, feedback_auth]
-        return self.contract_adapter.send("giveFeedback", params, signer)
+        return self.contract_adapter.send("reputation", "giveFeedback", params, signer)
 
     def register_agent(
         self,
@@ -91,7 +110,7 @@ class AgentSDK:
     ) -> str:
         signer = signer or self.signer
         params = [token_uri, metadata]
-        return self.contract_adapter.send("register", params, signer)
+        return self.contract_adapter.send("identity", "register", params, signer)
 
     def update_metadata(
         self,
@@ -101,18 +120,8 @@ class AgentSDK:
     ) -> str:
         signer = signer or self.signer
         params = [agent_id, token_uri]
-        return self.contract_adapter.send("updateMetadata", params, signer)
+        return self.contract_adapter.send("identity", "updateMetadata", params, signer)
 
-    def transfer(
-        self,
-        to_addr: str,
-        amount: int,
-        token: Optional[str] = None,
-        signer: Optional[Signer] = None,
-    ) -> str:
-        signer = signer or self.signer
-        params = [to_addr, amount, token]
-        return self.contract_adapter.send("transfer", params, signer)
 
     def build_feedback_auth(
         self,
@@ -134,15 +143,15 @@ class AgentSDK:
             "identityRegistry": identity_registry,
             "signerAddress": signer.get_address(),
         }
-        message = sha256_hex(canonical_json(payload)).encode("utf-8")
+        message = keccak256_bytes(canonical_json(payload))
         return signer.sign_message(message)
 
     def build_commitment(self, order_params: dict) -> str:
         payload = canonical_json(order_params)
-        return sha256_hex(payload)
+        return keccak256_hex(payload)
 
     def compute_request_hash(self, request_payload: str) -> str:
-        return sha256_hex(request_payload)
+        return keccak256_hex(request_payload.encode("utf-8"))
 
     def build_a2a_signature(
         self,
@@ -157,7 +166,7 @@ class AgentSDK:
             "timestamp": timestamp,
             "callerAddress": caller_address,
         }
-        message = sha256_hex(canonical_json(payload)).encode("utf-8")
+        message = keccak256_bytes(canonical_json(payload))
         return signer.sign_message(message)
 
     def build_market_order_quote_request(self, asset: str, amount: float, slippage: float = 0.01) -> dict:
@@ -204,3 +213,21 @@ class AgentSDK:
                 action_commitment, timestamp, caller_address
             )
         return payload
+
+    def build_payment_signature(
+        self,
+        action_commitment: str,
+        payment_address: str,
+        amount: str,
+        timestamp: int,
+        signer: Optional[Signer] = None,
+    ) -> str:
+        signer = signer or self.signer
+        payload = {
+            "actionCommitment": action_commitment,
+            "paymentAddress": payment_address,
+            "amount": amount,
+            "timestamp": timestamp,
+        }
+        message = keccak256_bytes(canonical_json(payload))
+        return signer.sign_message(message)

@@ -5,7 +5,17 @@ from typing import Optional
 
 from .contract_adapter import ContractAdapter, DummyContractAdapter, TronContractAdapter
 from .signer import Signer, SimpleSigner, TronSigner
-from .utils import canonical_json, keccak256_hex, keccak256_bytes
+from .utils import canonical_json, canonical_json_str, keccak256_hex, keccak256_bytes
+
+
+def _is_hex_key(value: str) -> bool:
+    if not value:
+        return False
+    try:
+        bytes.fromhex(value)
+    except ValueError:
+        return False
+    return True
 
 
 @dataclass
@@ -45,7 +55,11 @@ class AgentSDK:
 
         if signer is None:
             if self.config.network.startswith("tron") and private_key:
-                signer = TronSigner(private_key=private_key.replace("0x", ""))
+                cleaned_key = private_key.replace("0x", "")
+                if _is_hex_key(cleaned_key):
+                    signer = TronSigner(private_key=cleaned_key)
+                else:
+                    signer = SimpleSigner(private_key=private_key)
             else:
                 signer = SimpleSigner(private_key=private_key)
         self.signer = signer
@@ -150,8 +164,15 @@ class AgentSDK:
         payload = canonical_json(order_params)
         return keccak256_hex(payload)
 
-    def compute_request_hash(self, request_payload: str) -> str:
-        return keccak256_hex(request_payload.encode("utf-8"))
+    def compute_request_hash(self, request_payload: str | dict) -> str:
+        if isinstance(request_payload, dict):
+            payload_bytes = canonical_json(request_payload)
+        else:
+            payload_bytes = str(request_payload).encode("utf-8")
+        return keccak256_hex(payload_bytes)
+
+    def dump_canonical(self, payload: dict) -> str:
+        return canonical_json_str(payload)
 
     def build_a2a_signature(
         self,

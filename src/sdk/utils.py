@@ -8,6 +8,10 @@ def canonical_json(payload: Dict[str, Any]) -> bytes:
     return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
 
+def canonical_json_str(payload: Dict[str, Any]) -> str:
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
 def sha256_hex(payload: bytes) -> str:
     return "0x" + hashlib.sha256(payload).hexdigest()
 

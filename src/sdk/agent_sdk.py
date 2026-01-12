@@ -38,6 +38,7 @@ class AgentSDK:
         identity_registry: Optional[str] = None,
         validation_registry: Optional[str] = None,
         reputation_registry: Optional[str] = None,
+        identity_registry_abi_path: Optional[str] = None,
         signer: Optional[Signer] = None,
         contract_adapter: Optional[ContractAdapter] = None,
     ) -> None:
@@ -71,6 +72,7 @@ class AgentSDK:
                     identity_registry=self.config.identity_registry,
                     validation_registry=self.config.validation_registry,
                     reputation_registry=self.config.reputation_registry,
+                    identity_registry_abi_path=identity_registry_abi_path,
                 )
             else:
                 contract_adapter = DummyContractAdapter()
@@ -85,7 +87,7 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
-        params = [validator_addr, agent_id, request_uri, request_hash]
+        params = [validator_addr, agent_id, request_uri, self._normalize_bytes32(request_hash)]
         return self.contract_adapter.send("validation", "validationRequest", params, signer)
 
     def validation_response(
@@ -98,7 +100,13 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
-        params = [request_hash, response, response_uri, response_hash, tag]
+        params = [
+            self._normalize_bytes32(request_hash),
+            response,
+            response_uri or "",
+            self._normalize_bytes32(response_hash),
+            self._normalize_bytes32(tag),
+        ]
         return self.contract_adapter.send("validation", "validationResponse", params, signer)
 
     def submit_reputation(
@@ -113,28 +121,41 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
-        params = [agent_id, score, tag1, tag2, fileuri, filehash, feedback_auth]
+        params = [
+            agent_id,
+            score,
+            self._normalize_bytes32(tag1),
+            self._normalize_bytes32(tag2),
+            fileuri or "",
+            self._normalize_bytes32(filehash),
+            self._normalize_bytes(feedback_auth),
+        ]
         return self.contract_adapter.send("reputation", "giveFeedback", params, signer)
 
     def register_agent(
         self,
         token_uri: str,
-        metadata: Optional[bytes] = None,
+        metadata: Optional[list[dict]] = None,
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
-        params = [token_uri, metadata]
+        if metadata is not None:
+            raise ValueError("register(string) only: metadata not supported")
+        params = [token_uri]
         return self.contract_adapter.send("identity", "register", params, signer)
 
     def update_metadata(
         self,
         agent_id: int,
-        token_uri: str,
+        key: str,
+        value: str | bytes,
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
-        params = [agent_id, token_uri]
-        return self.contract_adapter.send("identity", "updateMetadata", params, signer)
+        if isinstance(value, str):
+            value = value.encode("utf-8")
+        params = [agent_id, key, value]
+        return self.contract_adapter.send("identity", "setMetadata", params, signer)
 
 
     def build_feedback_auth(
@@ -148,17 +169,22 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
-        payload = {
-            "agentId": agent_id,
-            "clientAddress": client_addr,
-            "indexLimit": index_limit,
-            "expiry": expiry,
-            "chainId": chain_id,
-            "identityRegistry": identity_registry,
-            "signerAddress": signer.get_address(),
-        }
-        message = keccak256_bytes(canonical_json(payload))
-        return signer.sign_message(message)
+        signer_addr = signer.get_address()
+        struct_bytes = b"".join(
+            [
+                self._abi_encode_uint(agent_id),
+                self._abi_encode_address(client_addr),
+                self._abi_encode_uint(index_limit),
+                self._abi_encode_uint(expiry),
+                self._abi_encode_uint(chain_id),
+                self._abi_encode_address(identity_registry),
+                self._abi_encode_address(signer_addr),
+            ]
+        )
+        struct_hash = keccak256_bytes(struct_bytes)
+        message = keccak256_bytes(b"\x19Ethereum Signed Message:\n32" + struct_hash)
+        signature = self._normalize_bytes(signer.sign_message(message))
+        return "0x" + (struct_bytes + signature).hex()
 
     def build_commitment(self, order_params: dict) -> str:
         payload = canonical_json(order_params)
@@ -252,3 +278,42 @@ class AgentSDK:
         }
         message = keccak256_bytes(canonical_json(payload))
         return signer.sign_message(message)
+
+    @staticmethod
+    def _normalize_bytes32(value: Optional[str | bytes]) -> bytes:
+        if value is None:
+            return b"\x00" * 32
+        if isinstance(value, bytes):
+            return value
+        cleaned = value[2:] if value.startswith("0x") else value
+        if not cleaned:
+            return b"\x00" * 32
+        return bytes.fromhex(cleaned)
+
+    @staticmethod
+    def _normalize_bytes(value: Optional[str | bytes]) -> bytes:
+        if value is None:
+            return b""
+        if isinstance(value, bytes):
+            return value
+        cleaned = value[2:] if value.startswith("0x") else value
+        return bytes.fromhex(cleaned)
+
+    @staticmethod
+    def _abi_encode_uint(value: int) -> bytes:
+        return int(value).to_bytes(32, byteorder="big")
+
+    @staticmethod
+    def _abi_encode_address(address: str) -> bytes:
+        addr = address
+        if addr.startswith("T"):
+            try:
+                from tronpy.keys import to_hex_address
+            except Exception as exc:  # pragma: no cover - optional dependency
+                raise ValueError("tronpy required to convert base58 address") from exc
+            addr = to_hex_address(addr)
+        if addr.startswith("0x"):
+            addr = addr[2:]
+        if len(addr) != 40:
+            raise ValueError("address must be 20 bytes")
+        return bytes.fromhex(addr).rjust(32, b"\x00")

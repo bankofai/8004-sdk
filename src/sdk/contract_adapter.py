@@ -36,12 +36,14 @@ class TronContractAdapter(ContractAdapter):
         validation_registry: Optional[str],
         reputation_registry: Optional[str],
         identity_registry_abi_path: Optional[str] = None,
+        fee_limit: Optional[int] = None,
     ) -> None:
         self.rpc_url = rpc_url
         self.identity_registry = identity_registry
         self.validation_registry = validation_registry
         self.reputation_registry = reputation_registry
         self.identity_registry_abi_path = identity_registry_abi_path
+        self.fee_limit = fee_limit
         self._client = None
 
     def _get_client(self):
@@ -52,6 +54,8 @@ class TronContractAdapter(ContractAdapter):
             except ImportError as exc:
                 raise RuntimeError("tronpy is required for TronContractAdapter") from exc
             self._client = Tron(provider=HTTPProvider(self.rpc_url))
+            if self.fee_limit:
+                self._client.conf["fee_limit"] = self.fee_limit
         return self._client
 
     def _resolve_contract(self, contract: str):
@@ -141,6 +145,24 @@ class TronContractAdapter(ContractAdapter):
                 "register token_uri=%s",
                 params[0] if params else None,
             )
+            try:
+                client = self._get_client()
+                address = signer.get_address()
+                resource = client.get_account_resource(address)
+                energy_limit = resource.get("EnergyLimit", 0)
+                energy_used = resource.get("EnergyUsed", 0)
+                energy_left = max(energy_limit - energy_used, 0)
+                logging.getLogger("trc8004.adapter").info(
+                    "register energy_left=%s energy_limit=%s energy_used=%s",
+                    energy_left,
+                    energy_limit,
+                    energy_used,
+                )
+            except Exception as exc:
+                logging.getLogger("trc8004.adapter").warning(
+                    "register energy check failed error=%s",
+                    exc,
+                )
         function = self._pick_function(contract_ref, method, params)
         if method == "register":
             logging.getLogger("trc8004.adapter").info("register function=%s", function)

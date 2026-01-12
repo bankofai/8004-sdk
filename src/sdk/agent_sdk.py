@@ -39,6 +39,7 @@ class AgentSDK:
         validation_registry: Optional[str] = None,
         reputation_registry: Optional[str] = None,
         identity_registry_abi_path: Optional[str] = None,
+        fee_limit: Optional[int] = None,
         signer: Optional[Signer] = None,
         contract_adapter: Optional[ContractAdapter] = None,
     ) -> None:
@@ -73,6 +74,7 @@ class AgentSDK:
                     validation_registry=self.config.validation_registry,
                     reputation_registry=self.config.reputation_registry,
                     identity_registry_abi_path=identity_registry_abi_path,
+                    fee_limit=fee_limit,
                 )
             else:
                 contract_adapter = DummyContractAdapter()

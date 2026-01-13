@@ -6,6 +6,7 @@ from typing import Optional
 from .contract_adapter import ContractAdapter, DummyContractAdapter, TronContractAdapter
 from .signer import Signer, SimpleSigner, TronSigner
 from .utils import canonical_json, canonical_json_str, keccak256_hex, keccak256_bytes
+import httpx
 
 
 def _is_hex_key(value: str) -> bool:
@@ -39,6 +40,8 @@ class AgentSDK:
         validation_registry: Optional[str] = None,
         reputation_registry: Optional[str] = None,
         identity_registry_abi_path: Optional[str] = None,
+        validation_registry_abi_path: Optional[str] = None,
+        reputation_registry_abi_path: Optional[str] = None,
         fee_limit: Optional[int] = None,
         signer: Optional[Signer] = None,
         contract_adapter: Optional[ContractAdapter] = None,
@@ -74,6 +77,8 @@ class AgentSDK:
                     validation_registry=self.config.validation_registry,
                     reputation_registry=self.config.reputation_registry,
                     identity_registry_abi_path=identity_registry_abi_path,
+                    validation_registry_abi_path=validation_registry_abi_path,
+                    reputation_registry_abi_path=reputation_registry_abi_path,
                     fee_limit=fee_limit,
                 )
             else:
@@ -166,11 +171,15 @@ class AgentSDK:
         client_addr: str,
         index_limit: int,
         expiry: int,
-        chain_id: int,
+        chain_id: Optional[int],
         identity_registry: str,
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
+        if chain_id is None:
+            chain_id = self.resolve_chain_id()
+        if chain_id is None:
+            raise ValueError("CHAIN_ID_MISSING")
         signer_addr = signer.get_address()
         struct_bytes = b"".join(
             [
@@ -187,6 +196,25 @@ class AgentSDK:
         message = keccak256_bytes(b"\x19Ethereum Signed Message:\n32" + struct_hash)
         signature = self._normalize_bytes(signer.sign_message(message))
         return "0x" + (struct_bytes + signature).hex()
+
+    def resolve_chain_id(self) -> Optional[int]:
+        rpc_url = self.config.rpc_url
+        if not rpc_url:
+            return None
+        url = rpc_url.rstrip("/") + "/jsonrpc"
+        try:
+            response = httpx.post(
+                url,
+                json={"jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1},
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            result = response.json().get("result")
+            if isinstance(result, str) and result.startswith("0x"):
+                return int(result, 16)
+        except Exception:
+            return None
+        return None
 
     def build_commitment(self, order_params: dict) -> str:
         payload = canonical_json(order_params)
@@ -315,6 +343,8 @@ class AgentSDK:
                 raise ValueError("tronpy required to convert base58 address") from exc
             addr = to_hex_address(addr)
         if addr.startswith("0x"):
+            addr = addr[2:]
+        if len(addr) == 42 and addr.startswith("41"):
             addr = addr[2:]
         if len(addr) != 40:
             raise ValueError("address must be 20 bytes")

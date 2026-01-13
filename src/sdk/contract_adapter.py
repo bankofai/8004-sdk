@@ -36,6 +36,8 @@ class TronContractAdapter(ContractAdapter):
         validation_registry: Optional[str],
         reputation_registry: Optional[str],
         identity_registry_abi_path: Optional[str] = None,
+        validation_registry_abi_path: Optional[str] = None,
+        reputation_registry_abi_path: Optional[str] = None,
         fee_limit: Optional[int] = None,
     ) -> None:
         self.rpc_url = rpc_url
@@ -43,6 +45,8 @@ class TronContractAdapter(ContractAdapter):
         self.validation_registry = validation_registry
         self.reputation_registry = reputation_registry
         self.identity_registry_abi_path = identity_registry_abi_path
+        self.validation_registry_abi_path = validation_registry_abi_path
+        self.reputation_registry_abi_path = reputation_registry_abi_path
         self.fee_limit = fee_limit
         self._client = None
 
@@ -60,23 +64,27 @@ class TronContractAdapter(ContractAdapter):
 
     def _resolve_contract(self, contract: str):
         address = None
+        abi_path = None
         if contract == "identity":
             address = self.identity_registry
+            abi_path = self.identity_registry_abi_path
         elif contract == "validation":
             address = self.validation_registry
+            abi_path = self.validation_registry_abi_path
         elif contract == "reputation":
             address = self.reputation_registry
+            abi_path = self.reputation_registry_abi_path
         if not address:
             raise RuntimeError(f"Contract address missing for {contract}")
         client = self._get_client()
         contract_ref = client.get_contract(address)
-        if contract == "identity" and self.identity_registry_abi_path:
-            path = os.path.expanduser(self.identity_registry_abi_path)
+        if abi_path:
+            path = os.path.expanduser(abi_path)
             try:
                 with open(path, "r", encoding="utf-8") as handle:
                     data = json.load(handle)
                 abi = data.get("abi", data)
-                if isinstance(abi, list):
+                if contract == "identity" and isinstance(abi, list):
                     register_overloads = [
                         item
                         for item in abi
@@ -98,11 +106,11 @@ class TronContractAdapter(ContractAdapter):
                 contract_ref._functions = None
                 contract_ref._events = None
                 logging.getLogger("trc8004.adapter").info(
-                    "loaded identity abi path=%s", path
+                    "loaded %s abi path=%s", contract, path
                 )
             except Exception as exc:
                 logging.getLogger("trc8004.adapter").warning(
-                    "failed to load identity abi path=%s error=%s", path, exc
+                    "failed to load %s abi path=%s error=%s", contract, path, exc
                 )
         return contract_ref
 

@@ -3,6 +3,8 @@ import hmac
 import json
 from typing import Any, Dict
 
+from Crypto.Hash import keccak
+
 
 def canonical_json(payload: Dict[str, Any]) -> bytes:
     return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -21,8 +23,12 @@ def hmac_sha256_hex(key: bytes, payload: bytes) -> str:
 
 
 def keccak256_hex(payload: bytes) -> str:
-    return "0x" + hashlib.sha3_256(payload).hexdigest()
+    hasher = keccak.new(digest_bits=256)
+    hasher.update(payload)
+    return "0x" + hasher.hexdigest()
 
 
 def keccak256_bytes(payload: bytes) -> bytes:
-    return hashlib.sha3_256(payload).digest()
+    hasher = keccak.new(digest_bits=256)
+    hasher.update(payload)
+    return hasher.digest()

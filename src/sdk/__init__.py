@@ -4,6 +4,7 @@ from .signer import Signer, SimpleSigner, TronSigner
 
 from .client import AgentClient
 from .agent_protocol_client import AgentProtocolClient
+from .chain_utils import fetch_event_logs, fetch_trongrid_events, load_request_data, normalize_hash
 
 __all__ = [
     "AgentSDK",
@@ -15,4 +16,8 @@ __all__ = [
     "Signer",
     "SimpleSigner",
     "TronSigner",
+    "fetch_event_logs",
+    "fetch_trongrid_events",
+    "load_request_data",
+    "normalize_hash",
 ]

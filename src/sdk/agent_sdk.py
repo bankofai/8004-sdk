@@ -141,14 +141,20 @@ class AgentSDK:
 
     def register_agent(
         self,
-        token_uri: str,
+        token_uri: Optional[str] = None,
         metadata: Optional[list[dict]] = None,
         signer: Optional[Signer] = None,
     ) -> str:
         signer = signer or self.signer
+        token_uri = token_uri or ""
         if metadata is not None:
-            raise ValueError("register(string) only: metadata not supported")
-        params = [token_uri]
+            normalized = self._normalize_metadata_entries(metadata)
+            params = [token_uri, normalized]
+            return self.contract_adapter.send("identity", "register", params, signer)
+        if token_uri:
+            params = [token_uri]
+        else:
+            params = []
         return self.contract_adapter.send("identity", "register", params, signer)
 
     def update_metadata(
@@ -195,7 +201,48 @@ class AgentSDK:
         struct_hash = keccak256_bytes(struct_bytes)
         message = keccak256_bytes(b"\x19Ethereum Signed Message:\n32" + struct_hash)
         signature = self._normalize_bytes(signer.sign_message(message))
+        if len(signature) == 65:
+            v = signature[-1]
+            if v in (0, 1):
+                v += 27
+            r = int.from_bytes(signature[:32], byteorder="big")
+            s = int.from_bytes(signature[32:64], byteorder="big")
+            secp256k1_n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+            if s > secp256k1_n // 2:
+                s = secp256k1_n - s
+                v = 27 if v == 28 else 28
+            signature = (
+                r.to_bytes(32, byteorder="big")
+                + s.to_bytes(32, byteorder="big")
+                + bytes([v])
+            )
         return "0x" + (struct_bytes + signature).hex()
+
+    @staticmethod
+    def _normalize_metadata_entries(entries: list[dict]) -> list[dict]:
+        if not isinstance(entries, list):
+            raise TypeError("metadata must be a list of {key,value} objects")
+        normalized = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise TypeError("metadata entry must be an object")
+            key = entry.get("key")
+            value = entry.get("value")
+            if not key:
+                raise ValueError("metadata entry missing key")
+            if isinstance(value, bytes):
+                value_bytes = value
+            elif isinstance(value, str):
+                if value.startswith("0x") and _is_hex_key(value[2:]):
+                    value_bytes = bytes.fromhex(value[2:])
+                else:
+                    value_bytes = value.encode("utf-8")
+            elif value is None:
+                value_bytes = b""
+            else:
+                raise TypeError("metadata value must be bytes or string")
+            normalized.append({"key": key, "value": value_bytes})
+        return normalized
 
     def resolve_chain_id(self) -> Optional[int]:
         rpc_url = self.config.rpc_url

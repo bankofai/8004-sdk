@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 authors = [{ name = "TRC-8004" }]
 
 dependencies = [
-    "tronpy>=0.3.0",
+    "tronpy>=0.6.2",
 ]
 
 [tool.uv]

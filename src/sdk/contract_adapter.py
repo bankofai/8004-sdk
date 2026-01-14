@@ -1,6 +1,4 @@
-import json
 import logging
-import os
 import time
 from typing import Any, List, Optional
 
@@ -64,71 +62,59 @@ class TronContractAdapter(ContractAdapter):
 
     def _resolve_contract(self, contract: str):
         address = None
-        abi_path = None
         if contract == "identity":
             address = self.identity_registry
-            abi_path = self.identity_registry_abi_path
         elif contract == "validation":
             address = self.validation_registry
-            abi_path = self.validation_registry_abi_path
         elif contract == "reputation":
             address = self.reputation_registry
-            abi_path = self.reputation_registry_abi_path
         if not address:
             raise RuntimeError(f"Contract address missing for {contract}")
         client = self._get_client()
         contract_ref = client.get_contract(address)
+        abi_path = None
+        if contract == "identity":
+            abi_path = self.identity_registry_abi_path
+        elif contract == "validation":
+            abi_path = self.validation_registry_abi_path
+        elif contract == "reputation":
+            abi_path = self.reputation_registry_abi_path
         if abi_path:
-            path = os.path.expanduser(abi_path)
-            try:
-                with open(path, "r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-                abi = data.get("abi", data)
-                if contract == "identity" and isinstance(abi, list):
-                    register_overloads = [
-                        item
-                        for item in abi
-                        if item.get("type") == "function" and item.get("name") == "register"
-                    ]
-                    preferred = [
-                        item
-                        for item in register_overloads
-                        if len(item.get("inputs", [])) == 1
-                    ]
-                    if preferred:
-                        abi = [
-                            item
-                            for item in abi
-                            if not (item.get("type") == "function" and item.get("name") == "register")
-                        ]
-                        abi = preferred + abi
-                contract_ref.abi = abi
-                contract_ref._functions = None
-                contract_ref._events = None
-                logging.getLogger("trc8004.adapter").info(
-                    "loaded %s abi path=%s", contract, path
-                )
-            except Exception as exc:
-                logging.getLogger("trc8004.adapter").warning(
-                    "failed to load %s abi path=%s error=%s", contract, path, exc
-                )
+            logging.getLogger("trc8004.adapter").info(
+                "ignoring local abi path for %s; using on-chain ABI resolution",
+                contract,
+            )
         return contract_ref
 
     @staticmethod
     def _pick_function(contract_ref, method: str, params: List[Any]):
+        def _get_overload(name: str, arity: int):
+            try:
+                from tronpy.contract import ContractMethod
+            except ImportError as exc:
+                raise RuntimeError("tronpy is required for TronContractAdapter") from exc
+            for item in contract_ref.abi:
+                if item.get("type", "").lower() != "function":
+                    continue
+                if item.get("name") != name:
+                    continue
+                inputs = item.get("inputs", [])
+                if len(inputs) == arity:
+                    return ContractMethod(item, contract_ref)
+            raise KeyError(f"contract function not found: {name} arity={arity}")
+
         def _get(name: str):
             return getattr(contract_ref.functions, name)
 
         if method == "register" and "(" not in method:
-            overloads = []
             if len(params) == 1:
-                overloads = ["register(string)"]
-            elif len(params) == 2:
-                overloads = ["register(string,(string,bytes)[])"]
-            for name in overloads:
                 try:
-                    print(f"[adapter] register params={params} try_function={name}")
-                    return _get(name)
+                    return _get_overload("register", 1)
+                except Exception:
+                    pass
+            elif len(params) == 2:
+                try:
+                    return _get_overload("register", 2)
                 except Exception:
                     pass
             try:

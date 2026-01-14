@@ -10,8 +10,16 @@ dependencies = [
     "tronpy>=0.6.2",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.2.0",
+]
+
 [tool.uv]
 package = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools.packages]
 find = { include = ["sdk"] }

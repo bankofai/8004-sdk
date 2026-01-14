@@ -2,7 +2,7 @@
 
 这是一个用于本地开发的 TRC-8004 SDK。
 
-- commitment 与 request_hash 使用 keccak256 (sha3_256)。
+- commitment 与 request_hash 使用 keccak256（与 EVM 一致）。
 - TRON 链上调用使用 `tronpy`（需要配置 registry 合约地址）。
 - 转账由 Agent 自行实现，不由 SDK 负责。
 
@@ -15,6 +15,12 @@
 ```bash
 cd trc-8004-sdk
 uv run python -c "from sdk import AgentSDK; print(AgentSDK)"
+```
+
+## 测试
+```bash
+cd trc-8004-sdk
+uv run pytest
 ```
 
 ## 基本用法

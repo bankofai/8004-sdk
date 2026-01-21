@@ -167,10 +167,76 @@ class TronContractAdapter(ContractAdapter):
                     elif isinstance(abi_data, list):
                         contract_ref.abi = abi_data
                 logger.debug("Loaded ABI from %s for %s", abi_path, contract)
+            else:
+                # 没有提供 ABI 文件，尝试修复 ABIEncoderV2 的 tuple 类型
+                # tronpy 不支持 components 字段，需要手动展开
+                fixed_abi = self._fix_abi_encoder_v2(contract_ref.abi)
+                if fixed_abi:
+                    contract_ref.abi = fixed_abi
+                    logger.debug("Fixed ABIEncoderV2 for %s", contract)
         except Exception as e:
             raise ContractCallError(contract, "get_contract", str(e)) from e
 
         return contract_ref
+
+    def _fix_abi_encoder_v2(self, abi: list) -> list:
+        """
+        修复 ABIEncoderV2 的 tuple 类型
+        
+        tronpy 不支持 components 字段，需要将 tuple 类型展开为基本类型
+        注意：链上返回的 type 可能是 "Function" 而不是 "function"
+        """
+        if not abi:
+            return abi
+        
+        def expand_type(item: dict) -> str:
+            """展开 tuple 类型为 (type1,type2,...) 格式"""
+            t = item.get("type", "")
+            if t == "tuple" or t.startswith("tuple["):
+                components = item.get("components", [])
+                if components:
+                    inner = ",".join(expand_type(c) for c in components)
+                    if t == "tuple":
+                        return f"({inner})"
+                    else:
+                        # tuple[] -> (...)[]
+                        suffix = t[5:]  # 获取 [] 部分
+                        return f"({inner}){suffix}"
+            return t
+        
+        fixed = []
+        for entry in abi:
+            # 使用 .lower() 进行大小写不敏感比较
+            if entry.get("type", "").lower() != "function":
+                fixed.append(entry)
+                continue
+            
+            new_entry = dict(entry)
+            
+            # 修复 inputs
+            if "inputs" in entry:
+                new_inputs = []
+                for inp in entry["inputs"]:
+                    new_inp = dict(inp)
+                    new_inp["type"] = expand_type(inp)
+                    # 移除 components 字段，tronpy 不需要
+                    new_inp.pop("components", None)
+                    new_inputs.append(new_inp)
+                new_entry["inputs"] = new_inputs
+            
+            # 修复 outputs
+            if "outputs" in entry:
+                new_outputs = []
+                for out in entry["outputs"]:
+                    new_out = dict(out)
+                    new_out["type"] = expand_type(out)
+                    new_out.pop("components", None)
+                    new_outputs.append(new_out)
+                new_entry["outputs"] = new_outputs
+            
+            fixed.append(new_entry)
+        
+        return fixed
 
     @staticmethod
     def _pick_function(contract_ref, method: str, params: List[Any]):
@@ -282,7 +348,18 @@ class TronContractAdapter(ContractAdapter):
         )
 
         try:
-            txn = function(*params).with_owner(signer.get_address()).build()
+            # 尝试使用标准方式构建交易
+            try:
+                txn = function(*params).with_owner(signer.get_address()).build()
+            except ValueError as ve:
+                if "ABIEncoderV2" in str(ve):
+                    # ABIEncoderV2 需要手动编码参数
+                    txn = self._build_tx_with_abi_encoder_v2(
+                        contract_ref, method, params, signer
+                    )
+                else:
+                    raise
+            
             signed = signer.sign_tx(txn)
             result = signed.broadcast().wait()
 
@@ -306,6 +383,90 @@ class TronContractAdapter(ContractAdapter):
             ):
                 raise NetworkError(str(e)) from e
             raise ContractCallError(contract, method, str(e)) from e
+
+    def _build_tx_with_abi_encoder_v2(
+        self, contract_ref, method: str, params: List[Any], signer: Signer
+    ):
+        """
+        使用 eth_abi 手动编码 ABIEncoderV2 参数
+        
+        tronpy 不支持 ABIEncoderV2 的 tuple 类型，需要手动编码参数并构建交易
+        """
+        try:
+            from eth_abi import encode
+            from eth_utils import keccak
+        except ImportError:
+            raise RuntimeError("eth_abi and eth_utils are required for ABIEncoderV2 encoding")
+        
+        # 找到方法的 ABI（支持重载方法）
+        # 注意：链上返回的 type 可能是 "Function" 而不是 "function"
+        method_abi = None
+        for item in contract_ref.abi:
+            if item.get("type", "").lower() == "function" and item.get("name") == method:
+                inputs = item.get("inputs", [])
+                if len(inputs) == len(params):
+                    method_abi = item
+                    break
+        
+        if not method_abi:
+            # 打印调试信息
+            logger.debug(
+                "Looking for method %s with %d params in ABI with %d entries",
+                method, len(params), len(contract_ref.abi)
+            )
+            for item in contract_ref.abi:
+                if item.get("type", "").lower() == "function":
+                    logger.debug(
+                        "  Found function: %s with %d inputs",
+                        item.get("name"), len(item.get("inputs", []))
+                    )
+            raise ContractFunctionNotFoundError(
+                contract_ref.contract_address, method, len(params)
+            )
+        
+        # 构建类型签名
+        def get_type_str(inp: dict) -> str:
+            t = inp.get("type", "")
+            if t == "tuple" or t.startswith("tuple"):
+                components = inp.get("components", [])
+                inner = ",".join(get_type_str(c) for c in components)
+                if t == "tuple":
+                    return f"({inner})"
+                else:
+                    suffix = t[5:]
+                    return f"({inner}){suffix}"
+            return t
+        
+        types = [get_type_str(inp) for inp in method_abi.get("inputs", [])]
+        logger.debug("ABIEncoderV2 types: %s", types)
+        
+        # 编码参数
+        encoded_params = encode(types, params)
+        
+        # 计算函数选择器 (keccak256 of function signature)
+        sig = f"{method}({','.join(types)})"
+        selector = keccak(text=sig)[:4]
+        logger.debug("Function signature: %s, selector: %s", sig, selector.hex())
+        
+        # 构建完整的 calldata
+        data = selector + encoded_params
+        
+        # 使用 tronpy 的底层 API 构建交易
+        client = self._get_client()
+        owner_address = signer.get_address()
+        
+        # 构建 TriggerSmartContract 交易
+        txn = client.trx._build_transaction(
+            "TriggerSmartContract",
+            {
+                "owner_address": owner_address,
+                "contract_address": contract_ref.contract_address,
+                "data": data.hex(),
+            },
+            method=method,
+        )
+        
+        return txn
 
     def _check_energy(self, signer: Signer) -> None:
         """检查账户能量"""

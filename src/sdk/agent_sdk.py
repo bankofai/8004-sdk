@@ -178,6 +178,18 @@ class AgentSDK:
             type(self.signer).__name__,
         )
 
+    @property
+    def address(self) -> Optional[str]:
+        """
+        获取签名器的地址
+        
+        Returns:
+            签名器地址，如果没有签名器则返回 None
+        """
+        if self.signer is None:
+            return None
+        return self.signer.get_address()
+
     def _create_signer(self, private_key: Optional[str]) -> Signer:
         """创建签名器"""
         if self.config.network.startswith("tron") and private_key:

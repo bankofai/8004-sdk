@@ -22,6 +22,10 @@ class FixedSigner(Signer):
     def __init__(self, address: str = "TB1JKi9cPxrwy34n4iVYif8W7h9mfn9vXD") -> None:
         self._address = address
 
+    @property
+    def address(self) -> str:
+        return self._address
+
     def get_address(self) -> str:
         return self._address
 
@@ -172,16 +176,125 @@ def test_update_metadata_params() -> None:
     assert params[2] == b"agent"
 
 
-def test_build_feedback_auth_format() -> None:
+def test_build_feedback_auth_format_deprecated() -> None:
+    """Test build_feedback_auth is deprecated (Jan 2026 Update)"""
+    import warnings
     sdk = AgentSDK(signer=FixedSigner())
-    feedback = sdk.build_feedback_auth(
-        agent_id=6,
-        client_addr="TB1JKi9cPxrwy34n4iVYif8W7h9mfn9vXD",
-        index_limit=1,
-        expiry=123,
-        chain_id=10,
-        identity_registry="TWG6M8RJdPKdJSb4DV1Dn6MDzcix92tMb3",
-    )
+    
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        feedback = sdk.build_feedback_auth(
+            agent_id=6,
+            client_addr="TB1JKi9cPxrwy34n4iVYif8W7h9mfn9vXD",
+            index_limit=1,
+            expiry=123,
+            chain_id=10,
+            identity_registry="TWG6M8RJdPKdJSb4DV1Dn6MDzcix92tMb3",
+        )
+        # Should emit DeprecationWarning
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "deprecated" in str(w[0].message).lower()
+    
+    # Still returns valid format for backward compatibility
     assert feedback.startswith("0x")
     assert re.fullmatch(r"0x[0-9a-fA-F]+", feedback)
     assert len(bytes.fromhex(feedback[2:])) >= 224 + 65
+
+
+def test_set_agent_uri_params() -> None:
+    """Test set_agent_uri (Jan 2026 Update)"""
+    adapter = RecordingAdapter()
+    sdk = AgentSDK(
+        signer=FixedSigner(),
+        contract_adapter=adapter,
+    )
+    sdk.set_agent_uri(agent_id=4, new_uri="http://localhost:8402/.well-known/agent.json")
+    call = _last_call(adapter)
+    assert call[1] == "identity"
+    assert call[2] == "setAgentURI"
+    params = call[3]
+    assert params[0] == 4
+    assert params[1] == "http://localhost:8402/.well-known/agent.json"
+
+
+def test_sdk_address_property() -> None:
+    """Test SDK address property"""
+    signer = FixedSigner(address="TTestAddress123")
+    sdk = AgentSDK(signer=signer)
+    assert sdk.address == "TTestAddress123"
+
+
+def test_sdk_address_property_no_signer() -> None:
+    """Test SDK address property when no signer"""
+    sdk = AgentSDK(signer=None, contract_adapter=RecordingAdapter())
+    assert sdk.address is None
+
+
+def test_signer_address_property() -> None:
+    """Test signer address property"""
+    signer = FixedSigner(address="TMyAddress")
+    assert signer.get_address() == "TMyAddress"
+
+
+def test_register_agent_with_new_metadata_format() -> None:
+    """Test register_agent with Jan 2026 metadata format (metadataKey, metadataValue)"""
+    adapter = RecordingAdapter()
+    sdk = AgentSDK(
+        signer=FixedSigner(),
+        contract_adapter=adapter,
+    )
+    # Jan 2026 Update: struct fields renamed to metadataKey, metadataValue
+    metadata = [
+        {"metadataKey": "name", "metadataValue": "TestAgent"},
+        {"metadataKey": "version", "metadataValue": "1.0.0"},
+    ]
+    sdk.register_agent(token_uri="http://example.com/agent.json", metadata=metadata)
+    call = _last_call(adapter)
+    params = call[3]
+    entries = params[1]
+    assert entries[0][0] == "name"
+    assert entries[0][1] == b"TestAgent"
+    assert entries[1][0] == "version"
+    assert entries[1][1] == b"1.0.0"
+
+
+def test_revoke_feedback_params() -> None:
+    """Test revoke_feedback"""
+    adapter = RecordingAdapter()
+    sdk = AgentSDK(
+        signer=FixedSigner(),
+        contract_adapter=adapter,
+    )
+    sdk.revoke_feedback(agent_id=4, feedback_index=0)
+    call = _last_call(adapter)
+    assert call[1] == "reputation"
+    assert call[2] == "revokeFeedback"
+    params = call[3]
+    assert params[0] == 4
+    assert params[1] == 0
+
+
+def test_append_feedback_response_params() -> None:
+    """Test append_feedback_response"""
+    adapter = RecordingAdapter()
+    sdk = AgentSDK(
+        signer=FixedSigner(),
+        contract_adapter=adapter,
+    )
+    sdk.append_feedback_response(
+        agent_id=4,
+        client_address="TClient123",
+        feedback_index=0,
+        response_uri="ipfs://QmResponse",
+        response_hash="0x" + ("dd" * 32),
+    )
+    call = _last_call(adapter)
+    assert call[1] == "reputation"
+    assert call[2] == "appendResponse"
+    params = call[3]
+    assert params[0] == 4
+    assert params[1] == "TClient123"
+    assert params[2] == 0
+    assert params[3] == "ipfs://QmResponse"
+    assert params[4] == bytes.fromhex("dd" * 32)

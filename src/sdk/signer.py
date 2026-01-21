@@ -130,6 +130,11 @@ class SimpleSigner(Signer):
             private_key = "development-key"
         self._private_key = private_key.encode("utf-8")
         self._address = self._derive_address(private_key)
+    
+    @property
+    def address(self) -> str:
+        """公开的地址属性"""
+        return self._address
 
     def get_address(self) -> str:
         """
@@ -197,6 +202,7 @@ class TronSigner(Signer):
     Attributes:
         _key: tronpy PrivateKey 对象
         _address: TRON base58check 格式地址
+        address: 公开的地址属性（与 _address 相同）
 
     Args:
         private_key: 十六进制格式的私钥（64 字符，不带 0x 前缀）
@@ -207,6 +213,8 @@ class TronSigner(Signer):
     Example:
         >>> signer = TronSigner(private_key="abc123...")
         >>> signer.get_address()
+        'TJRabPrwbZy45sbavfcjinPJC18kjpRTv8'
+        >>> signer.address  # 也可以直接访问
         'TJRabPrwbZy45sbavfcjinPJC18kjpRTv8'
         >>> signer.sign_message(keccak256_bytes(b"hello"))
         '0x...'
@@ -232,6 +240,11 @@ class TronSigner(Signer):
             raise RuntimeError("tronpy is required for TronSigner") from exc
         self._key = PrivateKey(bytes.fromhex(private_key))
         self._address = self._key.public_key.to_base58check_address()
+    
+    @property
+    def address(self) -> str:
+        """公开的地址属性"""
+        return self._address
 
     def get_address(self) -> str:
         """

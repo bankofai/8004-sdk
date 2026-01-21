@@ -61,6 +61,7 @@ def test_validation_request_params() -> None:
 
 
 def test_validation_response_params() -> None:
+    """Test validation_response with Jan 2026 Update (tag is now string)"""
     adapter = RecordingAdapter()
     sdk = AgentSDK(
         signer=FixedSigner(),
@@ -71,7 +72,7 @@ def test_validation_response_params() -> None:
         response=100,
         response_uri="ipfs://resp",
         response_hash="0x" + ("cc" * 32),
-        tag="0x" + ("dd" * 32),
+        tag="execution",  # Jan 2026: tag is now string, not bytes32
     )
     call = _last_call(adapter)
     params = call[3]
@@ -79,10 +80,11 @@ def test_validation_response_params() -> None:
     assert params[1] == 100
     assert params[2] == "ipfs://resp"
     assert params[3] == bytes.fromhex("cc" * 32)
-    assert params[4] == bytes.fromhex("dd" * 32)
+    assert params[4] == "execution"  # Jan 2026: tag is string
 
 
 def test_submit_reputation_params() -> None:
+    """Test submit_reputation with Jan 2026 Update (no feedbackAuth, new endpoint param)"""
     adapter = RecordingAdapter()
     sdk = AgentSDK(
         signer=FixedSigner(),
@@ -91,23 +93,23 @@ def test_submit_reputation_params() -> None:
     sdk.submit_reputation(
         agent_id=6,
         score=95,
-        tag1="0x" + ("11" * 32),
-        tag2="0x" + ("22" * 32),
-        fileuri="ipfs://file",
-        filehash="0x" + ("33" * 32),
-        feedback_auth="0x" + ("44" * 65),
+        tag1="execution",  # Jan 2026: tags are now strings
+        tag2="market-swap",
+        endpoint="/a2a/x402/execute",  # Jan 2026: new endpoint param
+        feedback_uri="ipfs://file",  # Jan 2026: renamed from fileuri
+        feedback_hash="0x" + ("33" * 32),  # Jan 2026: renamed from filehash
     )
     call = _last_call(adapter)
     assert call[1] == "reputation"
     assert call[2] == "giveFeedback"
     params = call[3]
-    assert params[0] == 6
-    assert params[1] == 95
-    assert params[2] == bytes.fromhex("11" * 32)
-    assert params[3] == bytes.fromhex("22" * 32)
-    assert params[4] == "ipfs://file"
-    assert params[5] == bytes.fromhex("33" * 32)
-    assert params[6] == bytes.fromhex("44" * 65)
+    assert params[0] == 6  # agent_id
+    assert params[1] == 95  # score
+    assert params[2] == "execution"  # tag1 (string)
+    assert params[3] == "market-swap"  # tag2 (string)
+    assert params[4] == "/a2a/x402/execute"  # endpoint
+    assert params[5] == "ipfs://file"  # feedback_uri
+    assert params[6] == bytes.fromhex("33" * 32)  # feedback_hash
 
 
 def test_register_agent_token_uri_only() -> None:
@@ -149,10 +151,11 @@ def test_register_agent_with_metadata() -> None:
     params = call[3]
     assert params[0] == "http://example.com/agent.json"
     entries = params[1]
-    assert entries[0]["key"] == "k1"
-    assert entries[0]["value"] == b"v1"
-    assert entries[1]["key"] == "k2"
-    assert entries[1]["value"] == bytes.fromhex("aa" * 4)
+    # entries 是 tuple 列表: [(key, value), ...]
+    assert entries[0][0] == "k1"
+    assert entries[0][1] == b"v1"
+    assert entries[1][0] == "k2"
+    assert entries[1][1] == bytes.fromhex("aa" * 4)
 
 
 def test_update_metadata_params() -> None:

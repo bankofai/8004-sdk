@@ -20,6 +20,42 @@ uv add trc-8004-sdk
 pip install trc-8004-sdk
 ```
 
+## CLI 工具
+
+安装后可使用 `trc8004` 命令行工具：
+
+```bash
+# 创建新 Agent 项目
+trc8004 init MyAgent
+trc8004 init MyAgent --port 8200 --tags "swap,defi"
+
+# 测试 Agent 连通性
+trc8004 test --url http://localhost:8100
+
+# 注册 Agent 到链上
+trc8004 register --token-uri https://example.com/agent.json --name MyAgent
+```
+
+### 创建 Agent 项目示例
+
+```bash
+$ trc8004 init MySwapAgent --port 8200 --tags "swap,defi"
+
+✅ Agent 项目创建成功!
+
+📁 myswapagent/
+   ├── app.py           # Agent 主程序
+   ├── pyproject.toml   # 项目配置
+   ├── .env.example     # 环境变量模板
+   ├── README.md        # 文档
+   └── tests/           # 测试
+
+🚀 下一步:
+   cd myswapagent
+   uv sync
+   python app.py
+```
+
 ## 快速开始
 
 ```python
@@ -55,7 +91,7 @@ commitment = sdk.build_commitment({
 ### 1. 身份注册 (IdentityRegistry)
 
 ```python
-# 注册新 Agent
+# 方式 1: 使用 token_uri 注册
 tx_id = sdk.register_agent(
     token_uri="https://example.com/agent.json",
     metadata=[
@@ -63,6 +99,15 @@ tx_id = sdk.register_agent(
         {"key": "version", "value": "1.0.0"},
     ],
 )
+
+# 方式 2: 从 agent-card.json 自动提取 metadata
+import json
+with open(".well-known/agent-card.json") as f:
+    card = json.load(f)
+
+metadata = AgentSDK.extract_metadata_from_card(card)
+# metadata 包含: name, description, version, url, skills, tags, endpoints
+tx_id = sdk.register_agent(metadata=metadata)
 
 # 更新元数据
 tx_id = sdk.update_metadata(

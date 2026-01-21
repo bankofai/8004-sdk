@@ -139,12 +139,16 @@ class TronContractAdapter(ContractAdapter):
     def _resolve_contract(self, contract: str):
         """解析合约地址并获取合约引用"""
         address = None
+        abi_path = None
         if contract == "identity":
             address = self.identity_registry
+            abi_path = self.identity_registry_abi_path
         elif contract == "validation":
             address = self.validation_registry
+            abi_path = self.validation_registry_abi_path
         elif contract == "reputation":
             address = self.reputation_registry
+            abi_path = self.reputation_registry_abi_path
 
         if not address:
             raise MissingContractAddressError(contract)
@@ -152,6 +156,17 @@ class TronContractAdapter(ContractAdapter):
         client = self._get_client()
         try:
             contract_ref = client.get_contract(address)
+            
+            # 如果提供了 ABI 文件路径，使用文件中的 ABI（支持 ABIEncoderV2）
+            if abi_path:
+                import json
+                with open(abi_path) as f:
+                    abi_data = json.load(f)
+                    if isinstance(abi_data, dict) and "abi" in abi_data:
+                        contract_ref.abi = abi_data["abi"]
+                    elif isinstance(abi_data, list):
+                        contract_ref.abi = abi_data
+                logger.debug("Loaded ABI from %s for %s", abi_path, contract)
         except Exception as e:
             raise ContractCallError(contract, "get_contract", str(e)) from e
 
@@ -218,7 +233,12 @@ class TronContractAdapter(ContractAdapter):
         contract_ref = self._resolve_contract(contract)
         function = self._pick_function(contract_ref, method, params)
         try:
-            return function(*params).call()
+            result = function(*params)
+            # tronpy 的 ContractMethod 在某些情况下直接返回结果
+            # 而不是返回一个需要 .call() 的对象
+            if hasattr(result, 'call'):
+                return result.call()
+            return result
         except Exception as e:
             raise ContractCallError(contract, method, str(e)) from e
 

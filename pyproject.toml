@@ -1,10 +1,21 @@
 [project]
 name = "trc-8004-sdk"
-version = "0.1.0"
-description = "TRC-8004 Agent SDK (MVP)"
+version = "0.1.0b1"
+description = "TRC-8004 Agent SDK for TRON - Agent identity, reputation, and validation"
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.11"
-authors = [{ name = "TRC-8004" }]
+authors = [{ name = "sun-protocol", email = "dev@sun.io" }]
+keywords = ["tron", "blockchain", "agent", "erc-8004", "trc-8004", "sdk"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 dependencies = [
     "tronpy>=0.6.2",
@@ -12,9 +23,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = [
+dev = [
     "pytest>=8.2.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "build>=1.0.0",
+    "twine>=5.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/sun-protocol/trc-8004-sdk"
+Documentation = "https://github.com/sun-protocol/trc-8004-sdk#readme"
+Repository = "https://github.com/sun-protocol/trc-8004-sdk"
+Issues = "https://github.com/sun-protocol/trc-8004-sdk/issues"
 
 [project.scripts]
 trc8004 = "sdk.cli:main"
@@ -25,11 +46,15 @@ package = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-[tool.setuptools.packages]
-find = { include = ["sdk"] }
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

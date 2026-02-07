@@ -1,10 +1,10 @@
 """
-TRC-8004 合约适配器
+TRON-8004 Contract Adapter
 
-提供与不同区块链交互的抽象层，支持：
-- DummyContractAdapter: 本地开发/测试
-- TronContractAdapter: TRON 区块链
-- (未来) EVMContractAdapter: EVM 兼容链
+Provides an abstraction layer for interacting with different blockchains, supporting:
+- DummyContractAdapter: Local development/testing
+- TronContractAdapter: TRON Blockchain
+- (Future) EVMContractAdapter: EVM-compatible chains
 """
 
 import logging
@@ -22,52 +22,52 @@ from .exceptions import (
 from .retry import RetryConfig, DEFAULT_RETRY_CONFIG, retry
 from .signer import Signer
 
-logger = logging.getLogger("trc8004.adapter")
+logger = logging.getLogger("tron8004.adapter")
 
 
 class ContractAdapter:
     """
-    合约适配器抽象基类
+    Contract Adapter Abstract Base Class.
 
-    定义与区块链合约交互的标准接口。
+    Defines unified interfaces for contract interaction.
     """
 
     def call(self, contract: str, method: str, params: List[Any]) -> Any:
         """
-        调用合约只读方法
+        Call contract read-only method.
 
         Args:
-            contract: 合约名称 ("identity", "validation", "reputation")
-            method: 方法名
-            params: 参数列表
+            contract: Contract name ("identity", "validation", "reputation")
+            method: Method name
+            params: Parameter list
 
         Returns:
-            调用结果
+            Call result
         """
         raise NotImplementedError
 
     def send(self, contract: str, method: str, params: List[Any], signer: Signer) -> str:
         """
-        发送合约交易
+        Send contract transaction.
 
         Args:
-            contract: 合约名称
-            method: 方法名
-            params: 参数列表
-            signer: 签名器
+            contract: Contract name
+            method: Method name
+            params: Parameter list
+            signer: Signer
 
         Returns:
-            交易 ID
+            Transaction ID
         """
         raise NotImplementedError
 
 
 class DummyContractAdapter(ContractAdapter):
     """
-    本地测试用适配器
+    Adapter for local testing.
 
-    返回确定性的交易 ID，不进行实际的区块链交互。
-    适用于单元测试和本地开发。
+    Returns deterministic transaction IDs without actual blockchain interaction.
+    Suitable for unit testing and local development.
     """
 
     def call(self, contract: str, method: str, params: List[Any]) -> Any:
@@ -80,17 +80,17 @@ class DummyContractAdapter(ContractAdapter):
 
 class TronContractAdapter(ContractAdapter):
     """
-    TRON 区块链合约适配器
+    TRON Blockchain Contract Adapter.
 
-    使用 tronpy 库与 TRON 区块链交互。
+    Interacts with TRON blockchain using tronpy library.
 
     Args:
-        rpc_url: TRON RPC 节点地址
-        identity_registry: IdentityRegistry 合约地址
-        validation_registry: ValidationRegistry 合约地址
-        reputation_registry: ReputationRegistry 合约地址
-        fee_limit: 交易费用上限（单位：sun）
-        retry_config: 重试配置
+        rpc_url: TRON RPC node URL
+        identity_registry: IdentityRegistry contract address
+        validation_registry: ValidationRegistry contract address
+        reputation_registry: ReputationRegistry contract address
+        fee_limit: Transaction fee limit in sun
+        retry_config: Retry configuration
 
     Example:
         >>> adapter = TronContractAdapter(
@@ -124,7 +124,7 @@ class TronContractAdapter(ContractAdapter):
         self._client = None
 
     def _get_client(self):
-        """获取或创建 TRON 客户端"""
+        """Get or create TRON client."""
         if self._client is None:
             try:
                 from tronpy import Tron
@@ -137,7 +137,7 @@ class TronContractAdapter(ContractAdapter):
         return self._client
 
     def _resolve_contract(self, contract: str):
-        """解析合约地址并获取合约引用"""
+        """Resolve contract address and get contract reference."""
         address = None
         abi_path = None
         if contract == "identity":
@@ -157,7 +157,7 @@ class TronContractAdapter(ContractAdapter):
         try:
             contract_ref = client.get_contract(address)
             
-            # 如果提供了 ABI 文件路径，使用文件中的 ABI（支持 ABIEncoderV2）
+            # If ABI file path is provided, use ABI from file (supports ABIEncoderV2)
             if abi_path:
                 import json
                 with open(abi_path) as f:
@@ -168,8 +168,8 @@ class TronContractAdapter(ContractAdapter):
                         contract_ref.abi = abi_data
                 logger.debug("Loaded ABI from %s for %s", abi_path, contract)
             else:
-                # 没有提供 ABI 文件，尝试修复 ABIEncoderV2 的 tuple 类型
-                # tronpy 不支持 components 字段，需要手动展开
+                # No ABI file provided, try to fix ABIEncoderV2 tuple types
+                # tronpy does not support components field, need to manually expand
                 fixed_abi = self._fix_abi_encoder_v2(contract_ref.abi)
                 if fixed_abi:
                     contract_ref.abi = fixed_abi
@@ -181,16 +181,16 @@ class TronContractAdapter(ContractAdapter):
 
     def _fix_abi_encoder_v2(self, abi: list) -> list:
         """
-        修复 ABIEncoderV2 的 tuple 类型
+        Fix tuple types for ABIEncoderV2.
         
-        tronpy 不支持 components 字段，需要将 tuple 类型展开为基本类型
-        注意：链上返回的 type 可能是 "Function" 而不是 "function"
+        tronpy does not support components field, need to expand tuple to basic types.
+        Note: On-chain type might be "Function" instead of "function".
         """
         if not abi:
             return abi
         
         def expand_type(item: dict) -> str:
-            """展开 tuple 类型为 (type1,type2,...) 格式"""
+            """Expand tuple type to (type1,type2,...) format."""
             t = item.get("type", "")
             if t == "tuple" or t.startswith("tuple["):
                 components = item.get("components", [])
@@ -200,31 +200,31 @@ class TronContractAdapter(ContractAdapter):
                         return f"({inner})"
                     else:
                         # tuple[] -> (...)[]
-                        suffix = t[5:]  # 获取 [] 部分
+                        suffix = t[5:]  # Get [] part
                         return f"({inner}){suffix}"
             return t
         
         fixed = []
         for entry in abi:
-            # 使用 .lower() 进行大小写不敏感比较
+            # Use .lower() for case-insensitive comparison
             if entry.get("type", "").lower() != "function":
                 fixed.append(entry)
                 continue
             
             new_entry = dict(entry)
             
-            # 修复 inputs
+            # Fix inputs
             if "inputs" in entry:
                 new_inputs = []
                 for inp in entry["inputs"]:
                     new_inp = dict(inp)
                     new_inp["type"] = expand_type(inp)
-                    # 移除 components 字段，tronpy 不需要
+                    # Remove components field, not needed by tronpy
                     new_inp.pop("components", None)
                     new_inputs.append(new_inp)
                 new_entry["inputs"] = new_inputs
             
-            # 修复 outputs
+            # Fix outputs
             if "outputs" in entry:
                 new_outputs = []
                 for out in entry["outputs"]:
@@ -240,7 +240,7 @@ class TronContractAdapter(ContractAdapter):
 
     @staticmethod
     def _pick_function(contract_ref, method: str, params: List[Any]):
-        """选择合约方法（处理重载）"""
+        """Pick contract function (handle overloading)."""
 
         def _get_overload(name: str, arity: int):
             try:
@@ -262,7 +262,7 @@ class TronContractAdapter(ContractAdapter):
         def _get(name: str):
             return getattr(contract_ref.functions, name)
 
-        # 处理 register 方法的重载
+        # Handle overloading for register method
         if method == "register" and "(" not in method:
             if len(params) == 0:
                 try:
@@ -295,13 +295,13 @@ class TronContractAdapter(ContractAdapter):
         raise ContractFunctionNotFoundError(contract_ref.contract_address, method)
 
     def call(self, contract: str, method: str, params: List[Any]) -> Any:
-        """调用合约只读方法"""
+        """Call contract read-only method."""
         contract_ref = self._resolve_contract(contract)
         function = self._pick_function(contract_ref, method, params)
         try:
             result = function(*params)
-            # tronpy 的 ContractMethod 在某些情况下直接返回结果
-            # 而不是返回一个需要 .call() 的对象
+            # tronpy's ContractMethod returns result directly in some cases
+            # instead of returning an object needing .call()
             if hasattr(result, 'call'):
                 return result.call()
             return result
@@ -310,21 +310,21 @@ class TronContractAdapter(ContractAdapter):
 
     def send(self, contract: str, method: str, params: List[Any], signer: Signer) -> str:
         """
-        发送合约交易（带重试）
+        Send contract transaction (with retry).
 
         Args:
-            contract: 合约名称
-            method: 方法名
-            params: 参数列表
-            signer: 签名器
+            contract: Contract name
+            method: Method name
+            params: Parameter list
+            signer: Signer
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
-            TransactionFailedError: 交易执行失败
-            InsufficientEnergyError: 能量不足
+            ContractCallError: Contract call failed
+            TransactionFailedError: Transaction execution failed
+            InsufficientEnergyError: Insufficient energy
         """
         return self._send_with_retry(contract, method, params, signer)
 
@@ -332,10 +332,10 @@ class TronContractAdapter(ContractAdapter):
     def _send_with_retry(
         self, contract: str, method: str, params: List[Any], signer: Signer
     ) -> str:
-        """带重试的交易发送"""
+        """Send transaction with retry."""
         contract_ref = self._resolve_contract(contract)
 
-        # 检查能量（仅 register 方法）
+        # Check energy (only for register method)
         if method == "register":
             self._check_energy(signer)
 
@@ -348,12 +348,12 @@ class TronContractAdapter(ContractAdapter):
         )
 
         try:
-            # 尝试使用标准方式构建交易
+            # Try to build transaction using standard way
             try:
                 txn = function(*params).with_owner(signer.get_address()).build()
             except ValueError as ve:
                 if "ABIEncoderV2" in str(ve):
-                    # ABIEncoderV2 需要手动编码参数
+                    # ABIEncoderV2 requires manual parameter encoding
                     txn = self._build_tx_with_abi_encoder_v2(
                         contract_ref, method, params, signer
                     )
@@ -376,7 +376,7 @@ class TronContractAdapter(ContractAdapter):
                 raise InsufficientEnergyError() from e
             if "revert" in error_msg:
                 raise TransactionFailedError(reason=str(e)) from e
-            # 网络错误可重试
+            # Network errors are retryable
             if any(
                 kw in error_msg
                 for kw in ["timeout", "connection", "network", "unavailable"]
@@ -388,9 +388,9 @@ class TronContractAdapter(ContractAdapter):
         self, contract_ref, method: str, params: List[Any], signer: Signer
     ):
         """
-        使用 eth_abi 手动编码 ABIEncoderV2 参数
+        Manually encode ABIEncoderV2 parameters using eth_abi.
         
-        tronpy 不支持 ABIEncoderV2 的 tuple 类型，需要手动编码参数并构建交易
+        tronpy does not support ABIEncoderV2 tuple types, need to manually encode params and build transaction.
         """
         try:
             from eth_abi import encode
@@ -398,8 +398,8 @@ class TronContractAdapter(ContractAdapter):
         except ImportError:
             raise RuntimeError("eth_abi and eth_utils are required for ABIEncoderV2 encoding")
         
-        # 找到方法的 ABI（支持重载方法）
-        # 注意：链上返回的 type 可能是 "Function" 而不是 "function"
+        # Find method ABI (supports overloaded methods)
+        # Note: On-chain type might be "Function" instead of "function"
         method_abi = None
         for item in contract_ref.abi:
             if item.get("type", "").lower() == "function" and item.get("name") == method:
@@ -409,7 +409,7 @@ class TronContractAdapter(ContractAdapter):
                     break
         
         if not method_abi:
-            # 打印调试信息
+            # Print debug info
             logger.debug(
                 "Looking for method %s with %d params in ABI with %d entries",
                 method, len(params), len(contract_ref.abi)
@@ -424,7 +424,7 @@ class TronContractAdapter(ContractAdapter):
                 contract_ref.contract_address, method, len(params)
             )
         
-        # 构建类型签名
+        # Build type signature
         def get_type_str(inp: dict) -> str:
             t = inp.get("type", "")
             if t == "tuple" or t.startswith("tuple"):
@@ -440,22 +440,22 @@ class TronContractAdapter(ContractAdapter):
         types = [get_type_str(inp) for inp in method_abi.get("inputs", [])]
         logger.debug("ABIEncoderV2 types: %s", types)
         
-        # 编码参数
+        # Encode parameters
         encoded_params = encode(types, params)
         
-        # 计算函数选择器 (keccak256 of function signature)
+        # Calculate function selector (keccak256 of function signature)
         sig = f"{method}({','.join(types)})"
         selector = keccak(text=sig)[:4]
         logger.debug("Function signature: %s, selector: %s", sig, selector.hex())
         
-        # 构建完整的 calldata
+        # Build full calldata
         data = selector + encoded_params
         
-        # 使用 tronpy 的底层 API 构建交易
+        # Use tronpy low-level API to build transaction
         client = self._get_client()
         owner_address = signer.get_address()
         
-        # 构建 TriggerSmartContract 交易
+        # Build TriggerSmartContract transaction
         txn = client.trx._build_transaction(
             "TriggerSmartContract",
             {
@@ -469,7 +469,7 @@ class TronContractAdapter(ContractAdapter):
         return txn
 
     def _check_energy(self, signer: Signer) -> None:
-        """检查账户能量"""
+        """Check account energy."""
         try:
             client = self._get_client()
             address = signer.get_address()

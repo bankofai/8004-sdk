@@ -1,12 +1,12 @@
 """
-TRC-8004 SDK 签名器模块
+TRON-8004 SDK Signer Module
 
-提供区块链交易和消息签名的抽象接口及实现。
+Provides abstract interfaces and implementations for blockchain transactions and message signing.
 
 Classes:
-    Signer: 签名器抽象基类
-    SimpleSigner: 开发测试用的简单签名器（HMAC-SHA256）
-    TronSigner: TRON 区块链签名器（secp256k1）
+    Signer: Abstract base class for signers
+    SimpleSigner: Simple signer for development and testing (HMAC-SHA256)
+    TronSigner: TRON blockchain signer (secp256k1)
 
 Example:
     >>> from sdk.signer import TronSigner
@@ -15,9 +15,9 @@ Example:
     >>> signature = signer.sign_message(b"hello")
 
 Note:
-    - SimpleSigner 仅用于本地开发和测试，不提供真正的密码学安全性
-    - TronSigner 需要安装 tronpy 库
-    - 扩展其他链只需实现 Signer 接口
+    - SimpleSigner is for local development and testing only, providing no real cryptographic security
+    - TronSigner requires the tronpy library
+    - Extending to other chains only requires implementing the Signer interface
 """
 
 import hashlib
@@ -28,14 +28,14 @@ from .utils import hmac_sha256_hex
 
 class Signer:
     """
-    签名器抽象基类。
+    Abstract base class for signers.
 
-    定义了区块链签名器的标准接口，所有具体实现必须继承此类。
+    Defines the standard interface for blockchain signers; all concrete implementations must inherit from this class.
 
     Methods:
-        get_address: 获取签名者的区块链地址
-        sign_tx: 签名交易
-        sign_message: 签名任意消息
+        get_address: Get the signer's blockchain address
+        sign_tx: Sign a transaction
+        sign_message: Sign an arbitrary message
 
     Example:
         >>> class MySigner(Signer):
@@ -49,62 +49,62 @@ class Signer:
 
     def get_address(self) -> str:
         """
-        获取签名者的区块链地址。
+        Get the signer's blockchain address.
 
         Returns:
-            区块链地址字符串（格式取决于具体链）
+            Blockchain address string (format depends on the specific chain)
 
         Raises:
-            NotImplementedError: 子类必须实现此方法
+            NotImplementedError: Subclasses must implement this method
         """
         raise NotImplementedError
 
     def sign_tx(self, unsigned_tx: Any) -> Any:
         """
-        签名未签名的交易。
+        Sign an unsigned transaction.
 
         Args:
-            unsigned_tx: 未签名的交易对象（格式取决于具体链）
+            unsigned_tx: Unsigned transaction object (format depends on the specific chain)
 
         Returns:
-            已签名的交易对象
+            Signed transaction object
 
         Raises:
-            NotImplementedError: 子类必须实现此方法
+            NotImplementedError: Subclasses must implement this method
         """
         raise NotImplementedError
 
     def sign_message(self, payload: bytes) -> str:
         """
-        签名任意消息。
+        Sign an arbitrary message.
 
-        用于 EIP-191 风格的消息签名，常用于链下验证。
+        Used for EIP-191 style message signing, commonly used for off-chain verification.
 
         Args:
-            payload: 待签名的消息字节串（通常是哈希值）
+            payload: Message bytes to sign (usually a hash)
 
         Returns:
-            签名的十六进制字符串（带 0x 前缀）
+            Signed hexadecimal string (with 0x prefix)
 
         Raises:
-            NotImplementedError: 子类必须实现此方法
+            NotImplementedError: Subclasses must implement this method
         """
         raise NotImplementedError
 
 
 class SimpleSigner(Signer):
     """
-    开发测试用的简单签名器。
+    Simple signer for development and testing.
 
-    使用 HMAC-SHA256 进行签名，不是真正的区块链签名，
-    但保持了接口一致性，便于本地开发和单元测试。
+    Uses HMAC-SHA256 for signing, not a real blockchain signature,
+    but maintains interface consistency to facilitate local development and unit testing.
 
     Attributes:
-        _private_key: 私钥字节串
-        _address: 派生的伪地址
+        _private_key: Private key bytes
+        _address: Derived pseudo-address
 
     Args:
-        private_key: 私钥字符串，默认为 "development-key"
+        private_key: Private key string, defaults to "development-key"
 
     Example:
         >>> signer = SimpleSigner(private_key="my-test-key")
@@ -114,17 +114,17 @@ class SimpleSigner(Signer):
         '0x...'
 
     Warning:
-        此签名器仅用于开发测试，不提供密码学安全性！
-        生产环境请使用 TronSigner 或其他真正的区块链签名器。
+        This signer is for development and testing only and provides no cryptographic security!
+        Use TronSigner or other real blockchain signers for production environments.
     """
 
     def __init__(self, private_key: Optional[str] = None) -> None:
         """
-        初始化简单签名器。
+        Initialize the simple signer.
 
         Args:
-            private_key: 私钥字符串，用于派生地址和签名。
-                        如果为 None，使用默认的开发密钥。
+            private_key: Private key string used to derive address and sign.
+                        If None, uses the default development key.
         """
         if private_key is None:
             private_key = "development-key"
@@ -133,30 +133,30 @@ class SimpleSigner(Signer):
     
     @property
     def address(self) -> str:
-        """公开的地址属性"""
+        """Public address property"""
         return self._address
 
     def get_address(self) -> str:
         """
-        获取派生的伪地址。
+        Get the derived pseudo-address.
 
         Returns:
-            以 'T' 开头的 34 字符伪地址
+            34-character pseudo-address starting with 'T'
         """
         return self._address
 
     def sign_tx(self, unsigned_tx: Any) -> Any:
         """
-        签名交易（简化实现）。
+        Sign a transaction (simplified implementation).
 
-        对于字节类型的交易，追加 HMAC 签名；
-        对于其他类型，原样返回。
+        For byte type transactions, append HMAC signature;
+        For other types, return as is.
 
         Args:
-            unsigned_tx: 未签名的交易
+            unsigned_tx: Unsigned transaction
 
         Returns:
-            带签名的交易（字节类型）或原交易
+            Signed transaction (bytes) or original transaction
         """
         if isinstance(unsigned_tx, bytes):
             signature = hmac_sha256_hex(self._private_key, unsigned_tx).encode("utf-8")
@@ -165,28 +165,28 @@ class SimpleSigner(Signer):
 
     def sign_message(self, payload: bytes) -> str:
         """
-        使用 HMAC-SHA256 签名消息。
+        Sign a message using HMAC-SHA256.
 
         Args:
-            payload: 待签名的消息字节串
+            payload: Message bytes to sign
 
         Returns:
-            带 0x 前缀的十六进制签名
+            Hexadecimal signature with 0x prefix
         """
         return hmac_sha256_hex(self._private_key, payload)
 
     @staticmethod
     def _derive_address(private_key: str) -> str:
         """
-        从私钥派生伪地址。
+        Derive a pseudo-address from the private key.
 
-        使用 SHA-256 哈希私钥，取前 33 个字符作为地址。
+        Uses SHA-256 to hash the private key and takes the first 33 characters as the address.
 
         Args:
-            private_key: 私钥字符串
+            private_key: Private key string
 
         Returns:
-            以 'T' 开头的伪地址
+            Pseudo-address starting with 'T'
         """
         digest = hashlib.sha256(private_key.encode("utf-8")).hexdigest()
         return "T" + digest[:33]
@@ -194,45 +194,45 @@ class SimpleSigner(Signer):
 
 class TronSigner(Signer):
     """
-    TRON 区块链签名器。
+    TRON Blockchain Signer.
 
-    使用 secp256k1 椭圆曲线进行真正的区块链签名，
-    兼容 TRON 网络的交易和消息签名。
+    Uses secp256k1 elliptic curve for real blockchain signing,
+    compatible with TRON network transactions and message signing.
 
     Attributes:
-        _key: tronpy PrivateKey 对象
-        _address: TRON base58check 格式地址
-        address: 公开的地址属性（与 _address 相同）
+        _key: tronpy PrivateKey object
+        _address: TRON base58check format address
+        address: Public address property (same as _address)
 
     Args:
-        private_key: 十六进制格式的私钥（64 字符，不带 0x 前缀）
+        private_key: Hexadecimal format private key (64 characters, without 0x prefix)
 
     Raises:
-        RuntimeError: 未安装 tronpy 库
+        RuntimeError: tronpy library not installed
 
     Example:
         >>> signer = TronSigner(private_key="abc123...")
         >>> signer.get_address()
         'TJRabPrwbZy45sbavfcjinPJC18kjpRTv8'
-        >>> signer.address  # 也可以直接访问
+        >>> signer.address  # Can also be accessed directly
         'TJRabPrwbZy45sbavfcjinPJC18kjpRTv8'
         >>> signer.sign_message(keccak256_bytes(b"hello"))
         '0x...'
 
     Note:
-        需要安装 tronpy: pip install tronpy
+        Requires tronpy installation: pip install tronpy
     """
 
     def __init__(self, private_key: str) -> None:
         """
-        初始化 TRON 签名器。
+        Initialize the TRON signer.
 
         Args:
-            private_key: 十六进制格式的私钥（64 字符）
+            private_key: Hexadecimal format private key (64 characters)
 
         Raises:
-            RuntimeError: 未安装 tronpy 库
-            ValueError: 私钥格式无效
+            RuntimeError: tronpy library not installed
+            ValueError: Invalid private key format
         """
         try:
             from tronpy.keys import PrivateKey
@@ -243,42 +243,42 @@ class TronSigner(Signer):
     
     @property
     def address(self) -> str:
-        """公开的地址属性"""
+        """Public address property"""
         return self._address
 
     def get_address(self) -> str:
         """
-        获取 TRON 地址。
+        Get TRON address.
 
         Returns:
-            TRON base58check 格式地址（以 'T' 开头）
+            TRON base58check format address (starts with 'T')
         """
         return self._address
 
     def sign_tx(self, unsigned_tx: Any) -> Any:
         """
-        签名 TRON 交易。
+        Sign a TRON transaction.
 
         Args:
-            unsigned_tx: tronpy 的未签名交易对象
+            unsigned_tx: tronpy unsigned transaction object
 
         Returns:
-            已签名的交易对象
+            Signed transaction object
         """
         return unsigned_tx.sign(self._key)
 
     def sign_message(self, payload: bytes) -> str:
         """
-        签名消息哈希。
+        Sign a message hash.
 
-        使用 secp256k1 ECDSA 签名，返回 65 字节的签名
-        （r: 32 bytes, s: 32 bytes, v: 1 byte）。
+        Uses secp256k1 ECDSA signature, returns 65-byte signature
+        (r: 32 bytes, s: 32 bytes, v: 1 byte).
 
         Args:
-            payload: 消息哈希（32 字节）
+            payload: Message hash (32 bytes)
 
         Returns:
-            带 0x 前缀的十六进制签名（130 字符 + 前缀）
+            Hexadecimal signature with 0x prefix (130 characters + prefix)
         """
         signature = self._key.sign_msg_hash(payload)
         return "0x" + signature.hex()

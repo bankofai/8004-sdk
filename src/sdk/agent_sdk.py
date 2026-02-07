@@ -1,12 +1,12 @@
 """
-TRC-8004 Agent SDK
+TRON-8004 Agent SDK
 
-提供 Agent 与链上合约交互的统一接口，支持：
-- 身份注册与元数据管理 (IdentityRegistry)
-- 验证请求与响应 (ValidationRegistry)
-- 信誉反馈提交 (ReputationRegistry)
-- 签名构建与验证
-- 请求构建辅助
+Provides a unified interface for Agent interactions with on-chain contracts, supporting:
+- Identity Registration and Metadata Management (IdentityRegistry)
+- Validation Request and Response (ValidationRegistry)
+- Reputation Feedback Submission (ReputationRegistry)
+- Signature Construction and Verification
+- Request Construction Helpers
 
 Example:
     >>> from sdk import AgentSDK
@@ -42,11 +42,11 @@ from .retry import RetryConfig, DEFAULT_RETRY_CONFIG, retry
 from .signer import Signer, SimpleSigner, TronSigner
 from .utils import canonical_json, canonical_json_str, keccak256_hex, keccak256_bytes
 
-logger = logging.getLogger("trc8004.sdk")
+logger = logging.getLogger("tron8004.sdk")
 
 
 def _is_hex_key(value: str) -> bool:
-    """检查字符串是否为有效的十六进制私钥"""
+    """Check if string is a valid hexadecimal private key."""
     if not value:
         return False
     try:
@@ -57,7 +57,7 @@ def _is_hex_key(value: str) -> bool:
 
 
 def _is_hex_string(value: str) -> bool:
-    """检查字符串是否为有效的十六进制字符串"""
+    """Check if string is a valid hexadecimal string."""
     if not value:
         return False
     try:
@@ -70,16 +70,16 @@ def _is_hex_string(value: str) -> bool:
 @dataclass
 class SDKConfig:
     """
-    SDK 配置类
+    SDK Configuration Class.
 
     Attributes:
-        rpc_url: 区块链 RPC 节点地址
-        network: 网络标识 (如 "tron:nile", "tron:mainnet", "evm:1")
-        timeout: HTTP 请求超时时间（秒）
-        identity_registry: IdentityRegistry 合约地址
-        validation_registry: ValidationRegistry 合约地址
-        reputation_registry: ReputationRegistry 合约地址
-        retry_config: 重试配置
+        rpc_url: Blockchain RPC node URL
+        network: Network identifier (e.g., "tron:nile", "tron:mainnet", "evm:1")
+        timeout: HTTP request timeout (seconds)
+        identity_registry: IdentityRegistry contract address
+        validation_registry: ValidationRegistry contract address
+        reputation_registry: ReputationRegistry contract address
+        retry_config: Retry configuration
     """
 
     rpc_url: str = "https://nile.trongrid.io"
@@ -93,29 +93,29 @@ class SDKConfig:
 
 class AgentSDK:
     """
-    TRC-8004 Agent SDK 主类
+    TRON-8004 Agent SDK Main Class.
 
-    提供与链上合约交互的统一接口，包括：
-    - 身份注册与元数据管理
-    - 验证请求与响应
-    - 信誉反馈提交
-    - 签名构建
+    Provides a unified interface for interacting with on-chain contracts, including:
+    - Identity Registration and Metadata Management
+    - Validation Request and Response
+    - Reputation Feedback Submission
+    - Signature Construction
 
     Args:
-        private_key: 私钥（十六进制字符串，可带 0x 前缀）
-        rpc_url: RPC 节点地址
-        network: 网络标识（如 "tron:nile"）
-        identity_registry: IdentityRegistry 合约地址
-        validation_registry: ValidationRegistry 合约地址
-        reputation_registry: ReputationRegistry 合约地址
-        fee_limit: 交易费用上限（TRON 特有）
-        signer: 自定义签名器（可选）
-        contract_adapter: 自定义合约适配器（可选）
-        retry_config: 重试配置（可选）
+        private_key: Private key (hex string, optional 0x prefix)
+        rpc_url: RPC node URL
+        network: Network identifier (e.g., "tron:nile")
+        identity_registry: IdentityRegistry contract address
+        validation_registry: ValidationRegistry contract address
+        reputation_registry: ReputationRegistry contract address
+        fee_limit: Transaction fee limit (TRON specific)
+        signer: Custom signer (optional)
+        contract_adapter: Custom contract adapter (optional)
+        retry_config: Retry configuration (optional)
 
     Raises:
-        InvalidPrivateKeyError: 私钥格式无效
-        ConfigurationError: 配置错误
+        InvalidPrivateKeyError: Invalid private key format
+        ConfigurationError: Configuration error
 
     Example:
         >>> sdk = AgentSDK(
@@ -141,7 +141,7 @@ class AgentSDK:
         contract_adapter: Optional[ContractAdapter] = None,
         retry_config: Optional[RetryConfig] = None,
     ) -> None:
-        # 初始化配置
+        # Initialize configuration
         self.config = SDKConfig()
         if rpc_url is not None:
             self.config.rpc_url = rpc_url
@@ -156,12 +156,12 @@ class AgentSDK:
         if retry_config is not None:
             self.config.retry_config = retry_config
 
-        # 初始化签名器
+        # Initialize signer
         if signer is None:
             signer = self._create_signer(private_key)
         self.signer = signer
 
-        # 初始化合约适配器
+        # Initialize contract adapter
         if contract_adapter is None:
             contract_adapter = self._create_contract_adapter(
                 identity_registry_abi_path,
@@ -181,17 +181,17 @@ class AgentSDK:
     @property
     def address(self) -> Optional[str]:
         """
-        获取签名器的地址
+        Get the signer's address.
         
         Returns:
-            签名器地址，如果没有签名器则返回 None
+            Signer address, or None if no signer
         """
         if self.signer is None:
             return None
         return self.signer.get_address()
 
     def _create_signer(self, private_key: Optional[str]) -> Signer:
-        """创建签名器"""
+        """Create signer."""
         if self.config.network.startswith("tron") and private_key:
             cleaned_key = private_key.replace("0x", "")
             if _is_hex_key(cleaned_key):
@@ -211,7 +211,7 @@ class AgentSDK:
         reputation_abi_path: Optional[str],
         fee_limit: Optional[int],
     ) -> ContractAdapter:
-        """创建合约适配器"""
+        """Create contract adapter."""
         if self.config.network.startswith("tron"):
             return TronContractAdapter(
                 rpc_url=self.config.rpc_url,
@@ -235,23 +235,23 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        发起验证请求
+        Initate validation request.
 
-        将执行结果提交到 ValidationRegistry，请求验证者进行验证。
+        Submits execution results to ValidationRegistry, requesting validation from a validator.
 
         Args:
-            validator_addr: 验证者地址
-            agent_id: Agent ID（IdentityRegistry 中的 token ID）
-            request_uri: 请求数据 URI（如 ipfs://Qm...）
-            request_hash: 请求数据哈希（32 bytes，可选，会自动补零）
-            signer: 自定义签名器（可选）
+            validator_addr: Validator address
+            agent_id: Agent ID (token ID in IdentityRegistry)
+            request_uri: Request data URI (e.g., ipfs://Qm...)
+            request_hash: Request data hash (32 bytes, optional, auto-padded)
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
-            SignerNotAvailableError: 签名器不可用
+            ContractCallError: Contract call failed
+            SignerNotAvailableError: Signer not available
 
         Example:
             >>> tx_id = sdk.validation_request(
@@ -279,23 +279,23 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        提交验证响应 (Jan 2026 Update)
+        Submit validation response (Jan 2026 Update).
 
-        验证者调用此方法提交验证结果。
+        Validator calls this method to submit validation results.
 
         Args:
-            request_hash: 验证请求哈希（32 bytes）
-            response: 验证评分（0-100）
-            response_uri: 响应数据 URI（可选）
-            response_hash: 响应数据哈希（可选）
-            tag: 标签（可选，字符串）
-            signer: 自定义签名器（可选）
+            request_hash: Validation request hash (32 bytes)
+            response: Validation score (0-100)
+            response_uri: Response data URI (optional)
+            response_hash: Response data hash (optional)
+            tag: Tag (optional, string)
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
+            ContractCallError: Contract call failed
         """
         signer = signer or self.signer
         if signer is None:
@@ -323,28 +323,29 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        提交信誉反馈 (Jan 2026 Update)
+        Submit reputation feedback (Jan 2026 Update).
 
-        向 ReputationRegistry 提交对 Agent 的评分反馈。
+        Submit rating feedback for an Agent to ReputationRegistry.
         
-        注意：Jan 2026 更新移除了 feedbackAuth 预授权机制，现在任何人都可以直接提交反馈。
-        Spam/Sybil 防护通过链下过滤和信誉系统处理。
+        Note: Jan 2026 Update removed feedbackAuth pre-authorization mechanism.
+        Now anyone can submit feedback directly.
+        Spam/Sybil protection is handled via off-chain filtering and reputation systems.
 
         Args:
             agent_id: Agent ID
-            score: 评分（0-100）
-            tag1: 标签1（可选，字符串）
-            tag2: 标签2（可选，字符串）
-            endpoint: 使用的 endpoint（可选）
-            feedback_uri: 反馈文件 URI（可选）
-            feedback_hash: 反馈文件哈希（可选，IPFS 不需要）
-            signer: 自定义签名器（可选）
+            score: Score (0-100)
+            tag1: Tag 1 (optional, string)
+            tag2: Tag 2 (optional, string)
+            endpoint: Endpoint used (optional)
+            feedback_uri: Feedback file URI (optional)
+            feedback_hash: Feedback file hash (optional, not needed for IPFS)
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
+            ContractCallError: Contract call failed
 
         Example:
             >>> tx_id = sdk.submit_reputation(
@@ -378,20 +379,20 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        注册 Agent
+        Register Agent.
 
-        在 IdentityRegistry 中注册新的 Agent，获得唯一的 Agent ID。
+        Registers a new Agent in IdentityRegistry and obtains a unique Agent ID.
 
         Args:
-            token_uri: Agent 元数据 URI（如 https://example.com/agent.json）
-            metadata: 初始元数据列表，格式为 [{"key": "name", "value": "MyAgent"}, ...]
-            signer: 自定义签名器（可选）
+            token_uri: Agent metadata URI (e.g., https://example.com/agent.json)
+            metadata: Initial metadata list, format [{"key": "name", "value": "MyAgent"}, ...]
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
+            ContractCallError: Contract call failed
 
         Example:
             >>> tx_id = sdk.register_agent(
@@ -420,22 +421,22 @@ class AgentSDK:
     @staticmethod
     def extract_metadata_from_card(card: dict) -> list[dict]:
         """
-        从 agent-card.json 提取关键信息作为链上 metadata。
+        Extract key information from agent-card.json as on-chain metadata.
 
-        注意：根据 ERC-8004 规范，链上 metadata 应该是最小化的。
-        大部分信息应该存储在 token_uri 指向的 registration file 中。
+        Note: According to ERC-8004 specification, on-chain metadata should be minimal.
+        Most information should be stored in the registration file pointed to by token_uri.
         
-        此方法只提取真正需要链上可组合性的字段：
-        - name: Agent 名称（便于链上查询）
-        - version: 版本号
+        This method only extracts fields truly needed for on-chain composability:
+        - name: Agent name (for on-chain queries)
+        - version: Version number
         
-        其他信息（description, skills, endpoints, tags 等）应通过 token_uri 获取。
+        Other information (description, skills, endpoints, tags, etc.) should be retrieved via token_uri.
 
         Args:
-            card: agent-card.json 内容
+            card: agent-card.json content
 
         Returns:
-            metadata 列表，格式为 [{"key": "name", "value": "MyAgent"}, ...]
+            Metadata list, format [{"key": "name", "value": "MyAgent"}, ...]
 
         Example:
             >>> with open("agent-card.json") as f:
@@ -445,7 +446,7 @@ class AgentSDK:
         """
         metadata = []
 
-        # 只提取最关键的字段用于链上查询
+        # Only extract most critical fields for on-chain query
         if card.get("name"):
             metadata.append({"key": "name", "value": card["name"]})
         if card.get("version"):
@@ -456,23 +457,23 @@ class AgentSDK:
     @staticmethod
     def extract_full_metadata_from_card(card: dict) -> list[dict]:
         """
-        从 agent-card.json 提取完整信息作为链上 metadata。
+        Extract full information from agent-card.json as on-chain metadata.
 
-        警告：这会将大量数据写入链上，增加 gas 成本。
-        通常不推荐使用，除非有特殊的链上可组合性需求。
+        Warning: This will write a large amount of data on-chain, increasing gas costs.
+        Generally not recommended unless there are specific on-chain composability requirements.
         
-        根据 ERC-8004 规范，建议使用 token_uri 指向链下 registration file。
+        According to ERC-8004 specification, it is recommended to use token_uri pointing to an off-chain registration file.
 
         Args:
-            card: agent-card.json 内容
+            card: agent-card.json content
 
         Returns:
-            metadata 列表
+            Metadata list
         """
         import json as json_module
         metadata = []
 
-        # 基础字段
+        # Basic fields
         if card.get("name"):
             metadata.append({"key": "name", "value": card["name"]})
         if card.get("description"):
@@ -482,7 +483,7 @@ class AgentSDK:
         if card.get("url"):
             metadata.append({"key": "url", "value": card["url"]})
 
-        # 复杂字段 (JSON 序列化)
+        # Complex fields (JSON serialization)
         if card.get("skills"):
             skills_summary = [{"id": s.get("id"), "name": s.get("name")} for s in card["skills"]]
             metadata.append({"key": "skills", "value": json_module.dumps(skills_summary, ensure_ascii=False)})
@@ -507,19 +508,19 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        更新 Agent 元数据
+        Update Agent metadata.
 
         Args:
             agent_id: Agent ID
-            key: 元数据键
-            value: 元数据值（字符串或字节）
-            signer: 自定义签名器（可选）
+            key: Metadata key
+            value: Metadata value (string or bytes)
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
+            ContractCallError: Contract call failed
         """
         signer = signer or self.signer
         if signer is None:
@@ -540,37 +541,37 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        设置 Agent 钱包地址（需要 EIP-712 签名验证）(Jan 2026 Update)
+        Set Agent wallet address (requires EIP-712 signature verification) (Jan 2026 Update).
 
-        根据 ERC-8004 规范，agentWallet 是保留字段，设置时需要证明调用者控制该钱包。
-        此方法会自动生成 EIP-712 格式的钱包所有权证明签名。
+        According to ERC-8004 specification, agentWallet is a reserved field. Setting it requires proving that the caller controls the wallet.
+        This method automatically generates an EIP-712 formatted wallet ownership proof signature.
 
         Args:
             agent_id: Agent ID
-            wallet_address: 要设置的钱包地址
-            deadline: 签名过期时间（Unix 时间戳）
-            wallet_signer: 钱包签名器（用于生成所有权证明，默认使用 self.signer）
-            signer: 交易签名器（Agent owner，默认使用 self.signer）
+            wallet_address: Wallet address to set
+            deadline: Signature expiration time (Unix timestamp)
+            wallet_signer: Wallet signer (used to generate ownership proof, defaults to self.signer)
+            signer: Transaction signer (Agent owner, defaults to self.signer)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
-            SignerNotAvailableError: 签名器不可用
+            ContractCallError: Contract call failed
+            SignerNotAvailableError: Signer not available
 
         Example:
             >>> import time
             >>> deadline = int(time.time()) + 3600  # 1 hour from now
             >>> 
-            >>> # 设置自己的钱包（signer 同时是 owner 和 wallet）
+            >>> # Set own wallet (signer is both owner and wallet)
             >>> tx_id = sdk.set_agent_wallet(
             ...     agent_id=1,
             ...     wallet_address="TWallet...",
             ...     deadline=deadline,
             ... )
             >>> 
-            >>> # 设置其他钱包（需要该钱包的签名器）
+            >>> # Set other wallet (requires that wallet's signer)
             >>> wallet_signer = TronSigner(private_key="wallet_private_key")
             >>> tx_id = sdk.set_agent_wallet(
             ...     agent_id=1,
@@ -587,7 +588,7 @@ class AgentSDK:
         if wallet_signer is None:
             raise SignerNotAvailableError("Wallet signer required for ownership proof")
 
-        # 构建 EIP-712 钱包所有权证明签名
+        # Build EIP-712 wallet ownership proof signature
         signature = self._build_eip712_wallet_signature(
             agent_id=agent_id,
             wallet_address=wallet_address,
@@ -607,7 +608,7 @@ class AgentSDK:
         wallet_signer: Signer,
     ) -> bytes:
         """
-        构建 EIP-712 钱包所有权证明签名 (Jan 2026 Update)
+        Build EIP-712 wallet ownership proof signature (Jan 2026 Update).
 
         EIP-712 Domain:
             name: "ERC-8004 IdentityRegistry"
@@ -619,16 +620,16 @@ class AgentSDK:
 
         Args:
             agent_id: Agent ID
-            wallet_address: 钱包地址
-            deadline: 签名过期时间
-            wallet_signer: 钱包签名器
+            wallet_address: Wallet address
+            deadline: Signature expiration
+            wallet_signer: Wallet signer
 
         Returns:
-            签名字节
+            Signature bytes
         """
         chain_id = self.resolve_chain_id()
         if chain_id is None:
-            # 默认使用 TRON Nile testnet chain ID
+            # Default to TRON Nile testnet chain ID
             chain_id = 3448148188
             logger.warning("Could not resolve chain ID, using default: %d", chain_id)
 
@@ -665,7 +666,7 @@ class AgentSDK:
         # Sign the digest
         signature = self._normalize_bytes(wallet_signer.sign_message(digest))
 
-        # 规范化签名（处理 v 值）
+        # Normalize signature (handle v value)
         if len(signature) == 65:
             v = signature[-1]
             if v in (0, 1):
@@ -681,21 +682,21 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        更新 Agent 的 URI (Jan 2026 Update)
+        Update Agent URI (Jan 2026 Update).
 
-        更新 Agent 的 registration file URI。只有 owner 或 approved operator 可以调用。
+        Update Agent's registration file URI. Only owner or approved operator can call.
 
         Args:
             agent_id: Agent ID
-            new_uri: 新的 URI
-            signer: 自定义签名器（可选）
+            new_uri: New URI
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Raises:
-            ContractCallError: 合约调用失败
-            SignerNotAvailableError: 签名器不可用
+            ContractCallError: Contract call failed
+            SignerNotAvailableError: Signer not available
 
         Example:
             >>> tx_id = sdk.set_agent_uri(
@@ -711,17 +712,17 @@ class AgentSDK:
         logger.debug("set_agent_uri: agent_id=%d, uri=%s", agent_id, new_uri[:50])
         return self.contract_adapter.send("identity", "setAgentURI", params, signer)
 
-    # ==================== Identity Registry 只读方法 ====================
+    # ==================== Identity Registry Read-Only Methods ====================
 
     def get_agent_uri(self, agent_id: int) -> str:
         """
-        获取 Agent 的 tokenURI
+        Get Agent's tokenURI.
 
         Args:
             agent_id: Agent ID
 
         Returns:
-            Agent 的 tokenURI（指向 registration file）
+            Agent's tokenURI (pointing to registration file)
 
         Example:
             >>> uri = sdk.get_agent_uri(1)
@@ -732,14 +733,14 @@ class AgentSDK:
 
     def get_metadata(self, agent_id: int, key: str) -> bytes:
         """
-        获取 Agent 的链上 metadata
+        Get Agent's on-chain metadata.
 
         Args:
             agent_id: Agent ID
-            key: metadata 键名
+            key: Metadata key name
 
         Returns:
-            metadata 值（bytes）
+            Metadata value (bytes)
 
         Example:
             >>> name = sdk.get_metadata(1, "name")
@@ -750,48 +751,48 @@ class AgentSDK:
 
     def agent_exists(self, agent_id: int) -> bool:
         """
-        检查 Agent 是否存在
+        Check if Agent exists.
 
         Args:
             agent_id: Agent ID
 
         Returns:
-            是否存在
+            True if exists, False otherwise
         """
         params = [agent_id]
         return self.contract_adapter.call("identity", "agentExists", params)
 
     def get_agent_owner(self, agent_id: int) -> str:
         """
-        获取 Agent 的所有者地址
+        Get Agent's owner address.
 
         Args:
             agent_id: Agent ID
 
         Returns:
-            所有者地址
+            Owner address
         """
         params = [agent_id]
         return self.contract_adapter.call("identity", "ownerOf", params)
 
     def total_agents(self) -> int:
         """
-        获取已注册的 Agent 总数
+        Get total number of registered Agents.
 
         Returns:
-            Agent 总数
+            Total Agents count
         """
         return self.contract_adapter.call("identity", "totalAgents", [])
 
     def get_agent_wallet(self, agent_id: int) -> str:
         """
-        获取 Agent 的钱包地址
+        Get Agent's wallet address.
 
         Args:
             agent_id: Agent ID
 
         Returns:
-            钱包地址（如果未设置返回零地址）
+            Wallet address (returns zero address if not set)
 
         Example:
             >>> wallet = sdk.get_agent_wallet(1)
@@ -800,26 +801,26 @@ class AgentSDK:
         params = [agent_id]
         return self.contract_adapter.call("identity", "getAgentWallet", params)
 
-    # ==================== Validation Registry 只读方法 ====================
+    # ==================== Validation Registry Read-Only Methods ====================
 
     def get_validation_status(self, request_hash: str) -> dict:
         """
-        获取验证状态 (Jan 2026 Update)
+        Get validation status (Jan 2026 Update).
 
         Args:
-            request_hash: 验证请求哈希（32 bytes）
+            request_hash: Validation request hash (32 bytes)
 
         Returns:
-            验证结果字典，包含:
-            - validatorAddress: 验证者地址 (address(0) if no response yet)
+            Validation result dictionary, containing:
+            - validatorAddress: Validator address (address(0) if no response yet)
             - agentId: Agent ID (0 if no response yet)
-            - response: 验证评分 (0-100, or 0 if no response yet)
-            - tag: 标签 (string)
-            - lastUpdate: 最后更新时间戳 (0 if no response yet)
+            - response: Validation score (0-100, or 0 if no response yet)
+            - tag: Tag (string)
+            - lastUpdate: Last update timestamp (0 if no response yet)
 
         Note:
-            返回默认值表示请求待处理（无响应），不会抛出异常。
-            要区分不存在的请求和待处理的请求，请使用 request_exists()。
+            Returns default values if request is pending (no response), does not raise exception.
+            To distinguish between non-existent requests and pending requests, use request_exists().
 
         Example:
             >>> result = sdk.get_validation_status("0x" + "aa" * 32)
@@ -839,26 +840,26 @@ class AgentSDK:
 
     def get_validation(self, request_hash: str) -> dict:
         """
-        获取验证结果 (已弃用，请使用 get_validation_status)
+        Get validation result (Deprecated, use get_validation_status).
 
         Args:
-            request_hash: 验证请求哈希（32 bytes）
+            request_hash: Validation request hash (32 bytes)
 
         Returns:
-            验证结果字典
+            Validation result dictionary
         """
         logger.warning("get_validation() is deprecated, use get_validation_status() instead")
         return self.get_validation_status(request_hash)
 
     def request_exists(self, request_hash: str) -> bool:
         """
-        检查验证请求是否存在 (Jan 2026 Update)
+        Check if validation request exists (Jan 2026 Update).
 
         Args:
-            request_hash: 验证请求哈希（32 bytes）
+            request_hash: Validation request hash (32 bytes)
 
         Returns:
-            是否存在
+            True if exists, False otherwise
 
         Example:
             >>> exists = sdk.request_exists("0x" + "aa" * 32)
@@ -868,17 +869,17 @@ class AgentSDK:
 
     def get_validation_request(self, request_hash: str) -> dict:
         """
-        获取验证请求详情 (Jan 2026 Update)
+        Get validation request details (Jan 2026 Update).
 
         Args:
-            request_hash: 验证请求哈希（32 bytes）
+            request_hash: Validation request hash (32 bytes)
 
         Returns:
-            请求详情字典，包含:
-            - validatorAddress: 验证者地址
+            Request details dictionary, containing:
+            - validatorAddress: Validator address
             - agentId: Agent ID
-            - requestURI: 请求 URI
-            - timestamp: 请求时间戳
+            - requestURI: Request URI
+            - timestamp: Request timestamp
 
         Example:
             >>> request = sdk.get_validation_request("0x" + "aa" * 32)
@@ -902,17 +903,17 @@ class AgentSDK:
         tag: str = "",
     ) -> dict:
         """
-        获取 Agent 的验证汇总 (Jan 2026 Update)
+        Get Agent's validation summary (Jan 2026 Update).
 
         Args:
             agent_id: Agent ID
-            validator_addresses: 验证者地址列表（可选，用于过滤）
-            tag: 标签（可选）
+            validator_addresses: Validator address list (optional, for filtering)
+            tag: Tag (optional)
 
         Returns:
-            汇总结果字典，包含:
-            - count: 验证数量
-            - averageResponse: 平均评分
+            Summary result dictionary, containing:
+            - count: Validation count
+            - averageResponse: Average score
 
         Example:
             >>> summary = sdk.get_validation_summary(1)
@@ -929,31 +930,31 @@ class AgentSDK:
 
     def get_agent_validations(self, agent_id: int) -> list[str]:
         """
-        获取 Agent 的所有验证请求哈希 (Jan 2026 Update)
+        Get all validation request hashes for an Agent (Jan 2026 Update).
 
         Args:
             agent_id: Agent ID
 
         Returns:
-            请求哈希列表
+            List of request hashes
         """
         params = [agent_id]
         return self.contract_adapter.call("validation", "getAgentValidations", params)
 
     def get_validator_requests(self, validator_address: str) -> list[str]:
         """
-        获取验证者的所有验证请求哈希 (Jan 2026 Update)
+        Get all validation request hashes for a validator (Jan 2026 Update).
 
         Args:
-            validator_address: 验证者地址
+            validator_address: Validator address
 
         Returns:
-            请求哈希列表
+            List of request hashes
         """
         params = [validator_address]
         return self.contract_adapter.call("validation", "getValidatorRequests", params)
 
-    # ==================== Reputation Registry 只读方法 ====================
+    # ==================== Reputation Registry Read-Only Methods ====================
 
     def get_feedback_summary(
         self,
@@ -963,18 +964,18 @@ class AgentSDK:
         tag2: str = "",
     ) -> dict:
         """
-        获取 Agent 的反馈汇总
+        Get Agent's feedback summary.
 
         Args:
             agent_id: Agent ID
-            client_addresses: 客户端地址列表（可选，用于过滤）
-            tag1: 标签1（可选）
-            tag2: 标签2（可选）
+            client_addresses: Client address list (optional, for filtering)
+            tag1: Tag 1 (optional)
+            tag2: Tag 2 (optional)
 
         Returns:
-            汇总结果字典，包含:
-            - count: 反馈数量
-            - averageScore: 平均评分
+            Summary result dictionary, containing:
+            - count: Feedback count
+            - averageScore: Average score
 
         Example:
             >>> summary = sdk.get_feedback_summary(1)
@@ -996,19 +997,19 @@ class AgentSDK:
         feedback_index: int,
     ) -> dict:
         """
-        读取单条反馈
+        Read a single feedback.
 
         Args:
             agent_id: Agent ID
-            client_address: 客户端地址
-            feedback_index: 反馈索引
+            client_address: Client address
+            feedback_index: Feedback index
 
         Returns:
-            反馈详情字典，包含:
-            - score: 评分 (0-100)
-            - tag1: 标签1
-            - tag2: 标签2
-            - isRevoked: 是否已撤销
+            Feedback details dictionary, containing:
+            - score: Score (0-100)
+            - tag1: Tag 1
+            - tag2: Tag 2
+            - isRevoked: Is revoked
 
         Example:
             >>> feedback = sdk.read_feedback(1, "TClient...", 0)
@@ -1027,32 +1028,32 @@ class AgentSDK:
 
     def get_feedback_clients(self, agent_id: int) -> list[str]:
         """
-        获取给 Agent 提交过反馈的所有客户端地址
+        Get all client addresses that have submitted feedback for an Agent.
 
         Args:
             agent_id: Agent ID
 
         Returns:
-            客户端地址列表
+            List of client addresses
         """
         params = [agent_id]
         return self.contract_adapter.call("reputation", "getClients", params)
 
     def get_last_feedback_index(self, agent_id: int, client_address: str) -> int:
         """
-        获取客户端对 Agent 的最后一条反馈索引
+        Get the index of the last feedback from a client for an Agent.
 
         Args:
             agent_id: Agent ID
-            client_address: 客户端地址
+            client_address: Client address
 
         Returns:
-            最后一条反馈的索引
+            Index of the last feedback
         """
         params = [agent_id, client_address]
         return self.contract_adapter.call("reputation", "getLastIndex", params)
 
-    # ==================== Reputation Registry 写入方法 ====================
+    # ==================== Reputation Registry Write Methods ====================
 
     def revoke_feedback(
         self,
@@ -1061,17 +1062,17 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        撤销反馈
+        Revoke feedback.
 
-        只有原始提交者可以撤销自己的反馈。
+        Only the original submitter can revoke their own feedback.
 
         Args:
             agent_id: Agent ID
-            feedback_index: 反馈索引
-            signer: 自定义签名器（可选）
+            feedback_index: Feedback index
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Example:
             >>> tx_id = sdk.revoke_feedback(agent_id=1, feedback_index=0)
@@ -1094,20 +1095,20 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        追加反馈响应
+        Append feedback response.
 
-        任何人都可以追加响应（如 Agent 展示退款证明，或数据分析服务标记垃圾反馈）。
+        Anyone can append a response (e.g., Agent showing refund proof, or data analysis service flagging spam).
 
         Args:
             agent_id: Agent ID
-            client_address: 原始反馈的客户端地址
-            feedback_index: 反馈索引
-            response_uri: 响应文件 URI
-            response_hash: 响应文件哈希（可选，IPFS URI 不需要）
-            signer: 自定义签名器（可选）
+            client_address: Client address of original feedback
+            feedback_index: Feedback index
+            response_uri: Response file URI
+            response_hash: Response file hash (optional, not needed for IPFS URI)
+            signer: Custom signer (optional)
 
         Returns:
-            交易 ID
+            Transaction ID
 
         Example:
             >>> tx_id = sdk.append_feedback_response(
@@ -1142,26 +1143,26 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        构建反馈授权签名 (已弃用 - Jan 2026 Update)
+        Build feedback authorization signature (Deprecated - Jan 2026 Update).
 
-        警告：Jan 2026 更新移除了 feedbackAuth 预授权机制。
-        现在任何人都可以直接调用 giveFeedback() 提交反馈，无需预授权。
-        此方法保留仅为向后兼容，将在未来版本中移除。
+        Warning: Jan 2026 Update removed feedbackAuth pre-authorization mechanism.
+        Now anyone can directly call giveFeedback() to submit feedback without pre-authorization.
+        This method is kept only for backward compatibility and will be removed in future versions.
 
         Args:
             agent_id: Agent ID
-            client_addr: 被授权的客户端地址
-            index_limit: 反馈索引上限
-            expiry: 授权过期时间（Unix 时间戳）
-            chain_id: 链 ID（可选，会自动解析）
-            identity_registry: IdentityRegistry 合约地址
-            signer: 自定义签名器（可选）
+            client_addr: Authorized client address
+            index_limit: Feedback index limit
+            expiry: Authorization expiration (Unix timestamp)
+            chain_id: Chain ID (optional, auto-resolved)
+            identity_registry: IdentityRegistry contract address
+            signer: Custom signer (optional)
 
         Returns:
-            反馈授权签名（0x 前缀的十六进制字符串）
+            Feedback authorization signature (0x prefixed hex string)
 
         Raises:
-            DeprecationWarning: 此方法已弃用
+            DeprecationWarning: This method is deprecated
         """
         import warnings
         warnings.warn(
@@ -1183,7 +1184,7 @@ class AgentSDK:
 
         signer_addr = signer.get_address()
 
-        # 构建 feedbackAuth 结构体 (legacy format)
+        # Build feedbackAuth struct (legacy format)
         struct_bytes = b"".join(
             [
                 self._abi_encode_uint(agent_id),
@@ -1196,12 +1197,12 @@ class AgentSDK:
             ]
         )
 
-        # EIP-191 签名
+        # EIP-191 Signature
         struct_hash = keccak256_bytes(struct_bytes)
         message = keccak256_bytes(b"\x19Ethereum Signed Message:\n32" + struct_hash)
         signature = self._normalize_bytes(signer.sign_message(message))
 
-        # 规范化签名（处理 v 值和 s 值）
+        # Normalize signature (handle v and s values)
         if len(signature) == 65:
             v = signature[-1]
             if v in (0, 1):
@@ -1224,11 +1225,11 @@ class AgentSDK:
     @staticmethod
     def _normalize_metadata_entries(entries: list[dict]) -> list[tuple]:
         """
-        规范化元数据条目为 tuple 格式 (Jan 2026 Update)
+        Normalize metadata entries to tuple format (Jan 2026 Update).
         
-        合约期望的格式是 (string metadataKey, bytes metadataValue) 的 tuple 数组
+        The format expected by the contract is a tuple array of (string metadataKey, bytes metadataValue).
         
-        注意：Jan 2026 更新将 struct 字段名从 (key, value) 改为 (metadataKey, metadataValue)
+        Note: Jan 2026 Update changed struct field names from (key, value) to (metadataKey, metadataValue).
         """
         if not isinstance(entries, list):
             raise TypeError("metadata must be a list of {key,value} objects")
@@ -1236,7 +1237,7 @@ class AgentSDK:
         for entry in entries:
             if not isinstance(entry, dict):
                 raise TypeError("metadata entry must be an object")
-            # 支持新旧两种字段名
+            # Support both new and old field names
             key = entry.get("metadataKey") or entry.get("key")
             value = entry.get("metadataValue") or entry.get("value")
             if not key:
@@ -1252,17 +1253,17 @@ class AgentSDK:
                 value_bytes = b""
             else:
                 raise TypeError("metadata value must be bytes or string")
-            # 返回 tuple 格式，符合 Solidity struct 编码要求
-            # 字段名为 (metadataKey, metadataValue) 但 tuple 编码只需要值
+            # Return tuple format, complying with Solidity struct encoding requirements
+            # Field names are (metadataKey, metadataValue) but tuple encoding only needs values
             normalized.append((key, value_bytes))
         return normalized
 
     def resolve_chain_id(self) -> Optional[int]:
         """
-        从 RPC 节点解析 Chain ID
+        Resolve Chain ID from RPC node.
 
         Returns:
-            Chain ID，解析失败返回 None
+            Chain ID, or None if resolution fails
         """
         rpc_url = self.config.rpc_url
         if not rpc_url:
@@ -1285,15 +1286,15 @@ class AgentSDK:
 
     def build_commitment(self, order_params: dict) -> str:
         """
-        构建订单承诺哈希
+        Build order commitment hash.
 
-        对订单参数进行规范化 JSON 序列化后计算 keccak256 哈希。
+        Calculates keccak256 hash after canonical JSON serialization of order parameters.
 
         Args:
-            order_params: 订单参数字典
+            order_params: Order parameters dictionary
 
         Returns:
-            承诺哈希（0x 前缀）
+            Commitment hash (0x prefixed)
 
         Example:
             >>> commitment = sdk.build_commitment({
@@ -1307,13 +1308,13 @@ class AgentSDK:
 
     def compute_request_hash(self, request_payload: str | dict) -> str:
         """
-        计算请求数据哈希
+        Compute request data hash.
 
         Args:
-            request_payload: 请求数据（字典或 JSON 字符串）
+            request_payload: Request data (dictionary or JSON string)
 
         Returns:
-            请求哈希（0x 前缀）
+            Request hash (0x prefixed)
         """
         if isinstance(request_payload, dict):
             payload_bytes = canonical_json(request_payload)
@@ -1323,13 +1324,13 @@ class AgentSDK:
 
     def dump_canonical(self, payload: dict) -> str:
         """
-        规范化 JSON 序列化
+        Canonical JSON serialization.
 
         Args:
-            payload: 待序列化的字典
+            payload: Dictionary to serialize
 
         Returns:
-            规范化的 JSON 字符串（键排序，无空格）
+            Canonical JSON string (keys sorted, no whitespace)
         """
         return canonical_json_str(payload)
 
@@ -1341,16 +1342,16 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        构建 A2A 请求签名
+        Build A2A request signature.
 
         Args:
-            action_commitment: 操作承诺哈希
-            timestamp: 时间戳
-            caller_address: 调用方地址
-            signer: 自定义签名器（可选）
+            action_commitment: Action commitment hash
+            timestamp: Timestamp
+            caller_address: Caller address
+            signer: Custom signer (optional)
 
         Returns:
-            签名（0x 前缀）
+            Signature (0x prefixed)
         """
         signer = signer or self.signer
         if signer is None:
@@ -1366,15 +1367,15 @@ class AgentSDK:
 
     def build_market_order_quote_request(self, asset: str, amount: float, slippage: float = 0.01) -> dict:
         """
-        构建市价单报价请求
+        Build market order quote request.
 
         Args:
-            asset: 交易对（如 "TRX/USDT"）
-            amount: 交易数量
-            slippage: 滑点容忍度（默认 1%）
+            asset: Trading pair (e.g., "TRX/USDT")
+            amount: Trading amount
+            slippage: Slippage tolerance (default 1%)
 
         Returns:
-            报价请求字典
+            Quote request dictionary
         """
         return {
             "asset": asset,
@@ -1390,16 +1391,16 @@ class AgentSDK:
         slippage: float = 0.01,
     ) -> dict:
         """
-        构建新建市价单请求
+        Build new market order request.
 
         Args:
-            asset: 交易对
-            amount: 交易数量
-            payment_tx_hash: 支付交易哈希
-            slippage: 滑点容忍度
+            asset: Trading pair
+            amount: Trading amount
+            payment_tx_hash: Payment transaction hash
+            slippage: Slippage tolerance
 
         Returns:
-            新建订单请求字典
+            New order request dictionary
         """
         return {
             "asset": asset,
@@ -1410,13 +1411,13 @@ class AgentSDK:
 
     def build_x402_quote_request(self, order_params: dict) -> dict:
         """
-        构建 X402 报价请求
+        Build X402 quote request.
 
         Args:
-            order_params: 订单参数
+            order_params: Order parameters
 
         Returns:
-            X402 报价请求字典
+            X402 quote request dictionary
         """
         return {"orderParams": order_params}
 
@@ -1430,18 +1431,18 @@ class AgentSDK:
         include_signature: bool = True,
     ) -> dict:
         """
-        构建 X402 执行请求
+        Build X402 execution request.
 
         Args:
-            action_commitment: 操作承诺哈希
-            order_params: 订单参数
-            payment_tx_hash: 支付交易哈希
-            timestamp: 时间戳
-            caller_address: 调用方地址
-            include_signature: 是否包含签名
+            action_commitment: Action commitment hash
+            order_params: Order parameters
+            payment_tx_hash: Payment transaction hash
+            timestamp: Timestamp
+            caller_address: Caller address
+            include_signature: Whether to include signature
 
         Returns:
-            X402 执行请求字典
+            X402 execution request dictionary
         """
         payload = {
             "actionCommitment": action_commitment,
@@ -1464,17 +1465,17 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        构建支付签名
+        Build payment signature.
 
         Args:
-            action_commitment: 操作承诺哈希
-            payment_address: 收款地址
-            amount: 支付金额
-            timestamp: 时间戳
-            signer: 自定义签名器（可选）
+            action_commitment: Action commitment hash
+            payment_address: Payment address
+            amount: Payment amount
+            timestamp: Timestamp
+            signer: Custom signer (optional)
 
         Returns:
-            支付签名（0x 前缀）
+            Payment signature (0x prefixed)
         """
         signer = signer or self.signer
         if signer is None:
@@ -1491,7 +1492,7 @@ class AgentSDK:
 
     @staticmethod
     def _normalize_bytes32(value: Optional[str | bytes]) -> bytes:
-        """规范化为 32 字节"""
+        """Normalize to 32 bytes."""
         if value is None:
             return b"\x00" * 32
         if isinstance(value, bytes):
@@ -1508,7 +1509,7 @@ class AgentSDK:
 
     @staticmethod
     def _normalize_bytes(value: Optional[str | bytes]) -> bytes:
-        """规范化为字节"""
+        """Normalize to bytes."""
         if value is None:
             return b""
         if isinstance(value, bytes):
@@ -1520,18 +1521,18 @@ class AgentSDK:
 
     @staticmethod
     def _abi_encode_uint(value: int) -> bytes:
-        """ABI 编码无符号整数（32 字节）"""
+        """ABI encode unsigned integer (32 bytes)."""
         return int(value).to_bytes(32, byteorder="big")
 
     @staticmethod
     def _abi_encode_address(address: str) -> bytes:
         """
-        ABI 编码地址（32 字节，左填充零）
+        ABI encode address (32 bytes, left-padded with zeros).
 
-        支持 TRON base58 地址和 EVM hex 地址。
+        Supports TRON base58 addresses and EVM hex addresses.
 
         Raises:
-            InvalidAddressError: 地址格式无效
+            InvalidAddressError: Invalid address format
         """
         addr = address
         if addr.startswith("T"):

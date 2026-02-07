@@ -155,7 +155,7 @@ def test_register_agent_with_metadata() -> None:
     params = call[3]
     assert params[0] == "http://example.com/agent.json"
     entries = params[1]
-    # entries 是 tuple 列表: [(key, value), ...]
+    # entries is a list of tuples: [(key, value), ...]
     assert entries[0][0] == "k1"
     assert entries[0][1] == b"v1"
     assert entries[1][0] == "k2"

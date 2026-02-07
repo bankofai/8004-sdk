@@ -1,15 +1,15 @@
 """
-TRC-8004 SDK 工具函数模块
+TRON-8004 SDK Utility Module
 
-提供加密哈希、JSON 序列化等基础工具函数。
+Provides foundational utility functions like encryption, hashing, JSON serialization, etc.
 
 Functions:
-    canonical_json: 规范化 JSON 序列化（字节）
-    canonical_json_str: 规范化 JSON 序列化（字符串）
-    sha256_hex: SHA-256 哈希
-    hmac_sha256_hex: HMAC-SHA256 签名
-    keccak256_hex: Keccak-256 哈希（十六进制）
-    keccak256_bytes: Keccak-256 哈希（字节）
+    canonical_json: Canonical JSON serialization (bytes)
+    canonical_json_str: Canonical JSON serialization (string)
+    sha256_hex: SHA-256 hash
+    hmac_sha256_hex: HMAC-SHA256 signature
+    keccak256_hex: Keccak-256 hash (hexadecimal)
+    keccak256_bytes: Keccak-256 hash (bytes)
 
 Example:
     >>> from sdk.utils import keccak256_hex, canonical_json
@@ -18,8 +18,8 @@ Example:
     >>> print(hash_hex)  # 0x...
 
 Note:
-    - 规范化 JSON 使用键排序和紧凑格式，确保相同数据产生相同哈希
-    - Keccak-256 是以太坊/TRON 使用的哈希算法，与 SHA3-256 略有不同
+    - Canonical JSON uses key sorting and compact format to ensure identical data produces identical hashes
+    - Keccak-256 is the hash algorithm used by Ethereum/TRON, slightly different from SHA3-256
 """
 
 import hashlib
@@ -32,41 +32,41 @@ from Crypto.Hash import keccak
 
 def canonical_json(payload: Dict[str, Any]) -> bytes:
     """
-    将字典序列化为规范化的 JSON 字节串。
+    Serialize dictionary to canonical JSON bytes.
 
-    规范化规则：
-    - 键按字母顺序排序
-    - 使用紧凑格式（无空格）
-    - 使用 UTF-8 编码
+    Canonicalization rules:
+    - Sort keys alphabetically
+    - Use compact format (no whitespace)
+    - Use UTF-8 encoding
 
     Args:
-        payload: 待序列化的字典
+        payload: Dictionary to serialize
 
     Returns:
-        规范化的 JSON 字节串
+        Canonical JSON bytes
 
     Example:
         >>> canonical_json({"b": 2, "a": 1})
         b'{"a":1,"b":2}'
 
     Note:
-        规范化确保相同的数据结构总是产生相同的字节串，
-        这对于生成确定性哈希至关重要。
+        Canonicalization ensures the same data structure always produces the same byte string,
+        which is critical for generating deterministic hashes.
     """
     return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
 
 def canonical_json_str(payload: Dict[str, Any]) -> str:
     """
-    将字典序列化为规范化的 JSON 字符串。
+    Serialize dictionary to canonical JSON string.
 
-    与 canonical_json 相同的规范化规则，但返回字符串而非字节。
+    Same canonicalization rules as canonical_json, but returns string instead of bytes.
 
     Args:
-        payload: 待序列化的字典
+        payload: Dictionary to serialize
 
     Returns:
-        规范化的 JSON 字符串
+        Canonical JSON string
 
     Example:
         >>> canonical_json_str({"b": 2, "a": 1})
@@ -77,13 +77,13 @@ def canonical_json_str(payload: Dict[str, Any]) -> str:
 
 def sha256_hex(payload: bytes) -> str:
     """
-    计算 SHA-256 哈希值。
+    Calculate SHA-256 hash value.
 
     Args:
-        payload: 待哈希的字节串
+        payload: Bytes to hash
 
     Returns:
-        带 0x 前缀的十六进制哈希字符串（64 字符 + 前缀）
+        Hexadecimal hash string with 0x prefix (64 chars + prefix)
 
     Example:
         >>> sha256_hex(b"hello")
@@ -94,44 +94,44 @@ def sha256_hex(payload: bytes) -> str:
 
 def hmac_sha256_hex(key: bytes, payload: bytes) -> str:
     """
-    计算 HMAC-SHA256 签名。
+    Calculate HMAC-SHA256 signature.
 
     Args:
-        key: 密钥字节串
-        payload: 待签名的消息字节串
+        key: Key bytes
+        payload: Message bytes to sign
 
     Returns:
-        带 0x 前缀的十六进制签名字符串
+        Hexadecimal signature string with 0x prefix
 
     Example:
         >>> hmac_sha256_hex(b"secret", b"message")
         '0x...'
 
     Note:
-        HMAC 提供消息认证，确保消息未被篡改且来自持有密钥的发送方。
+        HMAC provides message authentication, ensuring the message has not been tampered with and comes from the sender holding the key.
     """
     return "0x" + hmac.new(key, payload, hashlib.sha256).hexdigest()
 
 
 def keccak256_hex(payload: bytes) -> str:
     """
-    计算 Keccak-256 哈希值（十六进制格式）。
+    Calculate Keccak-256 hash value (hexadecimal format).
 
-    Keccak-256 是以太坊和 TRON 区块链使用的哈希算法。
+    Keccak-256 is the hash algorithm used by Ethereum and TRON blockchains.
 
     Args:
-        payload: 待哈希的字节串
+        payload: Bytes to hash
 
     Returns:
-        带 0x 前缀的十六进制哈希字符串（64 字符 + 前缀）
+        Hexadecimal hash string with 0x prefix (64 chars + prefix)
 
     Example:
         >>> keccak256_hex(b"hello")
         '0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8'
 
     Note:
-        Keccak-256 与 NIST 标准化的 SHA3-256 略有不同，
-        以太坊在 SHA3 标准化之前就采用了 Keccak。
+        Keccak-256 is slightly different from the NIST standardized SHA3-256,
+        Ethereum adopted Keccak before SHA3 standardization.
     """
     hasher = keccak.new(digest_bits=256)
     hasher.update(payload)
@@ -140,23 +140,22 @@ def keccak256_hex(payload: bytes) -> str:
 
 def keccak256_bytes(payload: bytes) -> bytes:
     """
-    计算 Keccak-256 哈希值（字节格式）。
+    Calculate Keccak-256 hash value (bytes format).
 
-    与 keccak256_hex 相同，但返回原始字节而非十六进制字符串。
+    Same as keccak256_hex, but returns raw bytes instead of hexadecimal string.
 
     Args:
-        payload: 待哈希的字节串
+        payload: Bytes to hash
 
     Returns:
-        32 字节的哈希值
+        32-byte hash value
 
     Example:
         >>> len(keccak256_bytes(b"hello"))
         32
 
     Note:
-        当需要将哈希用于进一步的密码学操作（如签名）时，
-        使用字节格式更高效。
+        It is more efficient to use bytes format when the hash needs to be used for further cryptographic operations (e.g., signing).
     """
     hasher = keccak.new(digest_bits=256)
     hasher.update(payload)

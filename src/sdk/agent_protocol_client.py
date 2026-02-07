@@ -1,15 +1,15 @@
 """
-TRC-8004 SDK Agent Protocol 客户端模块
+TRON-8004 SDK Agent Protocol Client Module
 
-提供符合 Agent Protocol 标准的 HTTP 客户端。
+Provides an HTTP client compliant with the Agent Protocol standard.
 
-Agent Protocol 是一个开放标准，定义了 AI Agent 的通用接口：
-- 创建任务 (Task)
-- 执行步骤 (Step)
-- 获取结果
+Agent Protocol is an open standard defining common interfaces for AI Agents:
+- Create Task (Task)
+- Execute Step (Step)
+- Get Results
 
 Classes:
-    AgentProtocolClient: Agent Protocol 标准客户端
+    AgentProtocolClient: Standard Agent Protocol Client
 
 Reference:
     https://agentprotocol.ai/
@@ -28,19 +28,19 @@ import httpx
 
 class AgentProtocolClient:
     """
-    Agent Protocol 标准客户端。
+    Agent Protocol Standard Client.
 
-    实现 Agent Protocol 规范的核心接口：
-    - POST /ap/v1/agent/tasks: 创建任务
-    - POST /ap/v1/agent/tasks/{task_id}/steps: 执行步骤
+    Implements core interfaces of Agent Protocol specification:
+    - POST /ap/v1/agent/tasks: Create task
+    - POST /ap/v1/agent/tasks/{task_id}/steps: Execute step
 
     Attributes:
-        base_url: Agent 服务基础 URL
-        timeout: HTTP 请求超时时间
+        base_url: Agent service base URL
+        timeout: HTTP request timeout
 
     Args:
-        base_url: Agent 服务基础 URL
-        timeout: HTTP 请求超时时间（秒），默认 10.0
+        base_url: Agent service base URL (e.g., https://agent.example.com)
+        timeout: HTTP request timeout (seconds), default 10.0
 
     Example:
         >>> client = AgentProtocolClient(
@@ -51,43 +51,43 @@ class AgentProtocolClient:
         >>> result = client.execute_step(task["task_id"], '{"action": "quote"}')
 
     Note:
-        Agent Protocol 是一个开放标准，旨在提供 AI Agent 的通用接口。
-        更多信息请参考: https://agentprotocol.ai/
+        Agent Protocol is an open standard for AI Agent interfaces.
+        See more at: https://agentprotocol.ai/
     """
 
     def __init__(self, base_url: str, timeout: float = 10.0) -> None:
         """
-        初始化 Agent Protocol 客户端。
+        Initialize Agent Protocol Client.
 
         Args:
-            base_url: Agent 服务基础 URL（如 https://agent.example.com）
-            timeout: HTTP 请求超时时间（秒）
+            base_url: Agent service base URL (e.g., https://agent.example.com)
+            timeout: HTTP request timeout (seconds)
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
     def create_task(self, input_text: Optional[str] = None) -> Dict[str, Any]:
         """
-        创建新任务。
+        Create a new task.
 
-        向 Agent 发送创建任务请求，获取任务 ID。
+        Sends a task creation request to the Agent and retrieves a task ID.
 
         Args:
-            input_text: 可选的初始输入文本
+            input_text: Optional initial input text
 
         Returns:
-            任务信息字典，包含 task_id 等字段
+            Task information dictionary, containing task_id, etc.
 
         Raises:
-            httpx.HTTPStatusError: HTTP 请求失败
-            httpx.TimeoutException: 请求超时
+            httpx.HTTPStatusError: HTTP request failed
+            httpx.TimeoutException: Request timed out
 
         Example:
             >>> task = client.create_task()
             >>> print(task["task_id"])
             'abc123-...'
             >>>
-            >>> # 带初始输入
+            >>> # With initial input
             >>> task = client.create_task(input_text="Hello")
         """
         payload: Dict[str, Any] = {}
@@ -105,20 +105,20 @@ class AgentProtocolClient:
         input_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        执行任务步骤。
+        Execute a task step.
 
-        向指定任务发送执行请求，获取步骤结果。
+        Sends an execution request to a specific task and retrieves the step result.
 
         Args:
-            task_id: 任务 ID（从 create_task 获取）
-            input_text: 步骤输入文本（通常是 JSON 字符串）
+            task_id: Task ID (obtained from create_task)
+            input_text: Step input text (usually a JSON string)
 
         Returns:
-            步骤结果字典，包含 output、status 等字段
+            Step result dictionary, containing output, status, etc.
 
         Raises:
-            httpx.HTTPStatusError: HTTP 请求失败
-            httpx.TimeoutException: 请求超时
+            httpx.HTTPStatusError: HTTP request failed
+            httpx.TimeoutException: Request timed out
 
         Example:
             >>> result = client.execute_step(
@@ -141,19 +141,19 @@ class AgentProtocolClient:
 
     def run(self, input_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
-        一键运行：创建任务并执行。
+        One-click run: Create task and execute.
 
-        便捷方法，自动创建任务并执行一个步骤。
+        Convenience method that automatically creates a task and executes a single step.
 
         Args:
-            input_payload: 输入数据字典，将被序列化为 JSON
+            input_payload: Input data dictionary, will be serialized to JSON
 
         Returns:
-            步骤执行结果
+            Step execution result
 
         Raises:
-            ValueError: 任务创建失败（无 task_id）
-            httpx.HTTPStatusError: HTTP 请求失败
+            ValueError: Task creation failed (missing task_id)
+            httpx.HTTPStatusError: HTTP request failed
 
         Example:
             >>> result = client.run({
@@ -166,15 +166,15 @@ class AgentProtocolClient:
             >>> print(result["output"])
 
         Note:
-            此方法适用于简单的单步骤任务。
-            对于复杂的多步骤任务，请分别调用 create_task 和 execute_step。
+            This method is suitable for simple single-step tasks.
+            For complex multi-step tasks, call create_task and execute_step separately.
         """
-        # 创建任务
+        # Create task
         task = self.create_task()
         task_id = task.get("task_id")
         if not task_id:
             raise ValueError("AGENT_TASK_ID_MISSING")
 
-        # 序列化输入并执行
+        # Serialize input and execute
         input_text = json.dumps(input_payload, ensure_ascii=False)
         return self.execute_step(task_id, input_text)

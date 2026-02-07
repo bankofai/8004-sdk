@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-TRC-8004 SDK 快速入门示例
+TRON-8004 SDK Quickstart Example
 
-运行前请设置环境变量:
+Please set environment variables before running:
     export TRON_PRIVATE_KEY="your_hex_private_key"
     export TRON_RPC_URL="https://nile.trongrid.io"
     export IDENTITY_REGISTRY="TYourIdentityRegistryAddress"
 
-运行:
+Run:
     python examples/quickstart.py
 """
 
@@ -17,8 +17,8 @@ from sdk import AgentSDK
 from sdk.exceptions import SDKError, InsufficientEnergyError
 
 def main():
-    # 1. 初始化 SDK
-    print("🚀 初始化 SDK...")
+    # 1. Initialize SDK
+    print("🚀 Initializing SDK...")
     sdk = AgentSDK(
         private_key=os.getenv("TRON_PRIVATE_KEY"),
         rpc_url=os.getenv("TRON_RPC_URL", "https://nile.trongrid.io"),
@@ -27,10 +27,10 @@ def main():
         validation_registry=os.getenv("VALIDATION_REGISTRY"),
         reputation_registry=os.getenv("REPUTATION_REGISTRY"),
     )
-    print(f"   ✓ SDK 初始化完成，网络: {sdk.config.network}")
+    print(f"   ✓ SDK Initialized, network: {sdk.config.network}")
 
-    # 2. 构建订单承诺 (不需要链上交互)
-    print("\n📝 构建订单承诺...")
+    # 2. Build Order Commitment (No on-chain interaction required)
+    print("\n📝 Building Order Commitment...")
     order_params = {
         "asset": "TRX/USDT",
         "amount": 100.0,
@@ -39,46 +39,46 @@ def main():
         "nonce": f"demo-{int(time.time())}",
     }
     commitment = sdk.build_commitment(order_params)
-    print(f"   ✓ 承诺哈希: {commitment[:20]}...")
+    print(f"   ✓ Commitment Hash: {commitment[:20]}...")
 
-    # 3. 计算请求哈希
-    print("\n🔐 计算请求哈希...")
+    # 3. Compute Request Hash
+    print("\n🔐 Computing Request Hash...")
     request_payload = {
         "actionCommitment": commitment,
         "orderParams": order_params,
         "timestamp": int(time.time()),
     }
     request_hash = sdk.compute_request_hash(request_payload)
-    print(f"   ✓ 请求哈希: {request_hash[:20]}...")
+    print(f"   ✓ Request Hash: {request_hash[:20]}...")
 
-    # 4. 规范化 JSON (用于存储/传输)
-    print("\n📦 规范化 JSON...")
+    # 4. Normalize JSON (for storage/transmission)
+    print("\n📦 Normalizing JSON...")
     canonical = sdk.dump_canonical(request_payload)
-    print(f"   ✓ 规范化长度: {len(canonical)} bytes")
+    print(f"   ✓ Normalized Length: {len(canonical)} bytes")
 
-    # 5. 链上操作示例 (需要私钥和合约地址)
+    # 5. On-chain Operation Example (Requires Private Key and Contract Address)
     if os.getenv("TRON_PRIVATE_KEY") and os.getenv("IDENTITY_REGISTRY"):
-        print("\n⛓️  链上操作示例...")
+        print("\n⛓️  On-chain Operation Example...")
         try:
-            # 注册 Agent (如果尚未注册)
+            # Register Agent (if not registered)
             # tx_id = sdk.register_agent(
             #     token_uri="https://example.com/my-agent.json",
             #     metadata=[{"key": "name", "value": "DemoAgent"}],
             # )
-            # print(f"   ✓ Agent 注册交易: {tx_id}")
-            print("   ⚠️  跳过链上注册 (取消注释上面代码以执行)")
+            # print(f"   ✓ Agent Registration TX: {tx_id}")
+            print("   ⚠️  Skipping on-chain registration (Uncomment above code to execute)")
         except InsufficientEnergyError:
-            print("   ❌ 能量不足，请充值 TRX")
+            print("   ❌ Insufficient Energy, please charge TRX")
         except SDKError as e:
-            print(f"   ❌ SDK 错误: {e}")
+            print(f"   ❌ SDK Error: {e}")
     else:
-        print("\n⚠️  跳过链上操作 (未设置 TRON_PRIVATE_KEY 或 IDENTITY_REGISTRY)")
+        print("\n⚠️  Skipping on-chain operation (TRON_PRIVATE_KEY or IDENTITY_REGISTRY not set)")
 
-    print("\n✅ 快速入门完成!")
-    print("\n下一步:")
-    print("  1. 查看 README.md 了解完整 API")
-    print("  2. 运行 examples/register_agent.py 注册你的 Agent")
-    print("  3. 运行 examples/validation_flow.py 体验验证流程")
+    print("\n✅ Quickstart Complete!")
+    print("\nNext Steps:")
+    print("  1. Check README.md for full API documentation")
+    print("  2. Run examples/register_agent.py to register your Agent")
+    print("  3. Run examples/validation_flow.py to experience the validation flow")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""测试重试机制"""
+"""Test Retry Mechanism"""
 
 import time
 import pytest
@@ -22,86 +22,86 @@ from sdk.exceptions import (
 
 
 class TestRetryConfig:
-    """测试重试配置"""
+    """Test retry configuration"""
 
     def test_default_config(self):
-        """测试默认配置"""
+        """Test default configuration"""
         config = DEFAULT_RETRY_CONFIG
         assert config.max_attempts == 3
         assert config.base_delay == 1.0
         assert config.jitter is True
 
     def test_aggressive_config(self):
-        """测试激进配置"""
+        """Test aggressive configuration"""
         config = AGGRESSIVE_RETRY_CONFIG
         assert config.max_attempts == 5
         assert config.base_delay == 0.5
 
     def test_conservative_config(self):
-        """测试保守配置"""
+        """Test conservative configuration"""
         config = CONSERVATIVE_RETRY_CONFIG
         assert config.max_attempts == 2
         assert config.base_delay == 2.0
 
     def test_no_retry_config(self):
-        """测试不重试配置"""
+        """Test no-retry configuration"""
         config = NO_RETRY_CONFIG
         assert config.max_attempts == 1
 
 
 class TestCalculateDelay:
-    """测试延迟计算"""
+    """Test delay calculation"""
 
     def test_first_attempt_no_delay(self):
-        """第一次尝试无延迟"""
+        """No delay for the first attempt"""
         config = RetryConfig(base_delay=1.0, jitter=False)
         assert calculate_delay(1, config) == 0.0
 
     def test_exponential_backoff(self):
-        """测试指数退避"""
+        """Test exponential backoff"""
         config = RetryConfig(base_delay=1.0, exponential_base=2.0, jitter=False)
         assert calculate_delay(2, config) == 1.0  # 1 * 2^0
         assert calculate_delay(3, config) == 2.0  # 1 * 2^1
         assert calculate_delay(4, config) == 4.0  # 1 * 2^2
 
     def test_max_delay_cap(self):
-        """测试最大延迟限制"""
+        """Test max delay cap"""
         config = RetryConfig(base_delay=1.0, max_delay=5.0, exponential_base=2.0, jitter=False)
-        assert calculate_delay(10, config) == 5.0  # 被限制在 max_delay
+        assert calculate_delay(10, config) == 5.0  # Capped at max_delay
 
     def test_jitter_adds_randomness(self):
-        """测试抖动添加随机性"""
+        """Test jitter adds randomness"""
         config = RetryConfig(base_delay=1.0, jitter=True, jitter_factor=0.5)
         delays = [calculate_delay(2, config) for _ in range(10)]
-        # 应该有不同的值
+        # Should have different values
         assert len(set(delays)) > 1
 
 
 class TestIsRetryable:
-    """测试可重试判断"""
+    """Test if retryable"""
 
     def test_network_error_retryable(self):
-        """网络错误可重试"""
+        """Network errors are retryable"""
         config = DEFAULT_RETRY_CONFIG
         assert is_retryable(NetworkError("timeout"), config) is True
         assert is_retryable(RPCError("failed"), config) is True
 
     def test_contract_error_not_retryable(self):
-        """合约错误不可重试"""
+        """Contract errors are not retryable"""
         config = DEFAULT_RETRY_CONFIG
         assert is_retryable(ContractCallError("c", "m", "revert"), config) is False
 
     def test_connection_error_retryable(self):
-        """连接错误可重试"""
+        """Connection errors are retryable"""
         config = DEFAULT_RETRY_CONFIG
         assert is_retryable(ConnectionError("refused"), config) is True
 
 
 class TestRetryDecorator:
-    """测试重试装饰器"""
+    """Test retry decorator"""
 
     def test_success_no_retry(self):
-        """成功时不重试"""
+        """No retry on success"""
         call_count = 0
 
         @retry(config=DEFAULT_RETRY_CONFIG)
@@ -115,7 +115,7 @@ class TestRetryDecorator:
         assert call_count == 1
 
     def test_retry_on_network_error(self):
-        """网络错误时重试"""
+        """Retry on network error"""
         call_count = 0
 
         @retry(config=RetryConfig(max_attempts=3, base_delay=0.01, jitter=False))
@@ -131,7 +131,7 @@ class TestRetryDecorator:
         assert call_count == 3
 
     def test_no_retry_on_contract_error(self):
-        """合约错误不重试"""
+        """No retry on contract error"""
         call_count = 0
 
         @retry(config=DEFAULT_RETRY_CONFIG)
@@ -145,7 +145,7 @@ class TestRetryDecorator:
         assert call_count == 1
 
     def test_retry_exhausted(self):
-        """重试耗尽"""
+        """Retries exhausted"""
         call_count = 0
 
         @retry(config=RetryConfig(max_attempts=2, base_delay=0.01, jitter=False))
@@ -162,10 +162,10 @@ class TestRetryDecorator:
 
 
 class TestRetryContext:
-    """测试重试上下文"""
+    """Test retry context"""
 
     def test_success_on_first_try(self):
-        """第一次成功"""
+        """Success on first try"""
         with RetryContext(config=DEFAULT_RETRY_CONFIG, operation="test") as ctx:
             ctx.next_attempt()
             ctx.success()
@@ -174,7 +174,7 @@ class TestRetryContext:
         assert ctx._succeeded is True
 
     def test_success_after_retry(self):
-        """重试后成功"""
+        """Success after retry"""
         config = RetryConfig(max_attempts=3, base_delay=0.01, jitter=False)
         attempt_results = [NetworkError("fail"), NetworkError("fail"), "ok"]
         idx = 0
@@ -194,7 +194,7 @@ class TestRetryContext:
         assert ctx._succeeded is True
 
     def test_exhausted_raises(self):
-        """耗尽时抛出异常"""
+        """Raises when exhausted"""
         config = RetryConfig(max_attempts=2, base_delay=0.01, jitter=False)
 
         with pytest.raises(RetryExhaustedError):

@@ -1,32 +1,32 @@
 """
-TRC-8004 SDK 异常定义模块
+TRON-8004 SDK Exceptions Module
 
-提供细粒度的异常类型，便于调用方精确处理错误。
+Provides fine-grained exception types for precise error handling by callers.
 
 Exception Hierarchy:
-    SDKError (基类)
-    ├── ConfigurationError (配置错误)
+    SDKError (Base Class)
+    ├── ConfigurationError
     │   ├── MissingContractAddressError
     │   ├── InvalidPrivateKeyError
     │   └── ChainIdResolutionError
-    ├── NetworkError (网络错误)
+    ├── NetworkError
     │   ├── RPCError
     │   ├── TimeoutError
     │   └── RetryExhaustedError
-    ├── ContractError (合约错误)
+    ├── ContractError
     │   ├── ContractCallError
     │   ├── ContractFunctionNotFoundError
     │   ├── TransactionFailedError
     │   └── InsufficientEnergyError
-    ├── SignatureError (签名错误)
+    ├── SignatureError
     │   ├── InvalidSignatureError
     │   └── SignerNotAvailableError
-    ├── DataError (数据错误)
+    ├── DataError
     │   ├── InvalidAddressError
     │   ├── InvalidHashError
     │   ├── SerializationError
     │   └── DataLoadError
-    └── ValidationError (验证错误)
+    └── ValidationError
         ├── RequestHashMismatchError
         ├── FeedbackAuthExpiredError
         └── FeedbackAuthInvalidError
@@ -36,14 +36,14 @@ Example:
     >>> try:
     ...     sdk.register_agent(...)
     ... except RetryExhaustedError as e:
-    ...     print(f"重试耗尽: {e.last_error}")
+    ...     print(f"Retry exhausted: {e.last_error}")
     ... except ContractCallError as e:
-    ...     print(f"合约调用失败: {e.code}")
+    ...     print(f"Contract call failed: {e.code}")
 
 Note:
-    - 所有异常都继承自 SDKError
-    - 每个异常都有 code 和 details 属性
-    - 可以通过捕获父类异常来处理一类错误
+    - All exceptions inherit from SDKError
+    - Each exception has code and details attributes
+    - Can catch parent exceptions to handle a category of errors
 """
 
 from typing import Optional, Any
@@ -51,18 +51,18 @@ from typing import Optional, Any
 
 class SDKError(Exception):
     """
-    SDK 基础异常类。
+    SDK Base Exception.
 
-    所有 SDK 异常的基类，提供统一的错误码和详情机制。
+    Base class for all SDK exceptions, providing unified error code and details mechanism.
 
     Attributes:
-        code: 错误码字符串，用于程序化处理
-        details: 错误详情，可以是任意类型
+        code: Error code string for programmatic handling
+        details: Error details, can be any type
 
     Args:
-        message: 错误消息
-        code: 错误码，默认为 "SDK_ERROR"
-        details: 错误详情
+        message: Error message
+        code: Error code, defaults to "SDK_ERROR"
+        details: Error details
 
     Example:
         >>> raise SDKError("Something went wrong", code="CUSTOM_ERROR", details={"key": "value"})
@@ -79,24 +79,24 @@ class SDKError(Exception):
         self.details = details
 
     def __str__(self) -> str:
-        """返回格式化的错误消息。"""
+        """Return formatted error message."""
         if self.details:
             return f"[{self.code}] {super().__str__()} - {self.details}"
         return f"[{self.code}] {super().__str__()}"
 
 
-# ============ 配置相关异常 ============
+# ============ Configuration Exceptions ============
 
 
 class ConfigurationError(SDKError):
     """
-    配置错误基类。
+    Configuration Error Base Class.
 
-    当 SDK 配置不正确时抛出。
+    Raised when SDK configuration is incorrect.
 
     Args:
-        message: 错误消息
-        details: 错误详情
+        message: Error message
+        details: Error details
     """
 
     def __init__(self, message: str, details: Optional[Any] = None) -> None:
@@ -105,15 +105,15 @@ class ConfigurationError(SDKError):
 
 class MissingContractAddressError(ConfigurationError):
     """
-    合约地址缺失异常。
+    Missing Contract Address Error.
 
-    当尝试调用合约但未配置对应地址时抛出。
+    Raised when attempting to call a contract but address is not configured.
 
     Attributes:
-        contract_name: 缺失地址的合约名称
+        contract_name: Name of the contract with missing address
 
     Args:
-        contract_name: 合约名称（如 "identity", "validation", "reputation"）
+        contract_name: Contract name (e.g., "identity", "validation", "reputation")
 
     Example:
         >>> raise MissingContractAddressError("identity")
@@ -130,12 +130,12 @@ class MissingContractAddressError(ConfigurationError):
 
 class InvalidPrivateKeyError(ConfigurationError):
     """
-    私钥格式无效异常。
+    Invalid Private Key Error.
 
-    当提供的私钥格式不正确时抛出。
+    Raised when provided private key format is incorrect.
 
     Args:
-        reason: 无效原因描述
+        reason: Reason for invalidity
 
     Example:
         >>> raise InvalidPrivateKeyError("Expected 64 hex characters")
@@ -148,12 +148,12 @@ class InvalidPrivateKeyError(ConfigurationError):
 
 class ChainIdResolutionError(ConfigurationError):
     """
-    Chain ID 解析失败异常。
+    Chain ID Resolution Failed Error.
 
-    当无法从 RPC 节点获取 Chain ID 时抛出。
+    Raised when unable to fetch Chain ID from RPC node.
 
     Args:
-        rpc_url: 尝试连接的 RPC URL
+        rpc_url: RPC URL attempted
 
     Example:
         >>> raise ChainIdResolutionError("https://nile.trongrid.io")
@@ -167,18 +167,18 @@ class ChainIdResolutionError(ConfigurationError):
         self.code = "CHAIN_ID_RESOLUTION_FAILED"
 
 
-# ============ 网络相关异常 ============
+# ============ Network Exceptions ============
 
 
 class NetworkError(SDKError):
     """
-    网络请求错误基类。
+    Network Request Error Base Class.
 
-    当网络请求失败时抛出。
+    Raised when network request fails.
 
     Args:
-        message: 错误消息
-        details: 错误详情
+        message: Error message
+        details: Error details
     """
 
     def __init__(self, message: str, details: Optional[Any] = None) -> None:
@@ -187,14 +187,14 @@ class NetworkError(SDKError):
 
 class RPCError(NetworkError):
     """
-    RPC 调用失败异常。
+    RPC Call Failed Error.
 
-    当区块链 RPC 调用失败时抛出。
+    Raised when blockchain RPC call fails.
 
     Args:
-        message: 错误消息
-        rpc_url: RPC 节点 URL
-        method: 调用的方法名
+        message: Error message
+        rpc_url: RPC node URL
+        method: Method name called
 
     Example:
         >>> raise RPCError("Connection refused", rpc_url="https://...", method="eth_call")
@@ -215,17 +215,17 @@ class RPCError(NetworkError):
 
 class TimeoutError(NetworkError):
     """
-    请求超时异常。
+    Request Timeout Error.
 
-    当操作超过指定时间未完成时抛出。
+    Raised when operation does not complete within specified time.
 
     Attributes:
-        operation: 超时的操作名称
-        timeout_seconds: 超时时间
+        operation: Name of the timed out operation
+        timeout_seconds: Timeout duration
 
     Args:
-        operation: 操作名称
-        timeout_seconds: 超时时间（秒）
+        operation: Operation name
+        timeout_seconds: Timeout in seconds
 
     Example:
         >>> raise TimeoutError("validation_request", 30.0)
@@ -241,17 +241,17 @@ class TimeoutError(NetworkError):
 
 class RetryExhaustedError(NetworkError):
     """
-    重试次数耗尽异常。
+    Retry Exhausted Error.
 
-    当操作在所有重试尝试后仍然失败时抛出。
+    Raised when operation fails after all retry attempts.
 
     Attributes:
-        last_error: 最后一次尝试的异常
+        last_error: Exception from the last attempt
 
     Args:
-        operation: 操作名称
-        attempts: 尝试次数
-        last_error: 最后一次尝试的异常
+        operation: Operation name
+        attempts: Number of attempts
+        last_error: Exception from the last attempt
 
     Example:
         >>> try:
@@ -279,18 +279,18 @@ class RetryExhaustedError(NetworkError):
         self.last_error = last_error
 
 
-# ============ 合约相关异常 ============
+# ============ Contract Exceptions ============
 
 
 class ContractError(SDKError):
     """
-    合约交互错误基类。
+    Contract Interaction Error Base Class.
 
-    当与智能合约交互失败时抛出。
+    Raised when interaction with smart contract fails.
 
     Args:
-        message: 错误消息
-        details: 错误详情
+        message: Error message
+        details: Error details
     """
 
     def __init__(self, message: str, details: Optional[Any] = None) -> None:
@@ -299,14 +299,14 @@ class ContractError(SDKError):
 
 class ContractCallError(ContractError):
     """
-    合约调用失败异常。
+    Contract Call Failed Error.
 
-    当合约方法调用失败时抛出。
+    Raised when contract method call fails.
 
     Args:
-        contract: 合约名称
-        method: 方法名
-        reason: 失败原因
+        contract: Contract name
+        method: Method name
+        reason: Failure reason
 
     Example:
         >>> raise ContractCallError("identity", "register", "revert: already registered")
@@ -327,14 +327,14 @@ class ContractCallError(ContractError):
 
 class ContractFunctionNotFoundError(ContractError):
     """
-    合约方法不存在异常。
+    Contract Function Not Found Error.
 
-    当尝试调用不存在的合约方法时抛出。
+    Raised when attempting to call a non-existent contract method.
 
     Args:
-        contract: 合约地址或名称
-        method: 方法名
-        arity: 参数数量（用于区分重载）
+        contract: Contract address or name
+        method: Method name
+        arity: Number of arguments (to distinguish overloads)
 
     Example:
         >>> raise ContractFunctionNotFoundError("TContract...", "unknownMethod", 2)
@@ -358,13 +358,13 @@ class ContractFunctionNotFoundError(ContractError):
 
 class TransactionFailedError(ContractError):
     """
-    交易执行失败异常。
+    Transaction Execution Failed Error.
 
-    当链上交易执行失败时抛出。
+    Raised when on-chain transaction execution fails.
 
     Args:
-        tx_id: 交易 ID
-        reason: 失败原因
+        tx_id: Transaction ID
+        reason: Failure reason
 
     Example:
         >>> raise TransactionFailedError(tx_id="0x123...", reason="out of gas")
@@ -384,20 +384,20 @@ class TransactionFailedError(ContractError):
 
 class InsufficientEnergyError(ContractError):
     """
-    能量/Gas 不足异常。
+    Insufficient Energy/Gas Error.
 
-    当账户能量或 Gas 不足以执行交易时抛出。
+    Raised when account energy or gas is insufficient to execute transaction.
 
     Args:
-        required: 所需能量
-        available: 可用能量
+        required: Required energy
+        available: Available energy
 
     Example:
         >>> raise InsufficientEnergyError(required=100000, available=50000)
 
     Note:
-        在 TRON 网络中，能量 (Energy) 用于执行智能合约。
-        在 EVM 网络中，对应的是 Gas。
+        In TRON network, Energy is used to execute smart contracts.
+        In EVM networks, it corresponds to Gas.
     """
 
     def __init__(
@@ -412,18 +412,18 @@ class InsufficientEnergyError(ContractError):
         self.code = "INSUFFICIENT_ENERGY"
 
 
-# ============ 签名相关异常 ============
+# ============ Signature Exceptions ============
 
 
 class SignatureError(SDKError):
     """
-    签名相关错误基类。
+    Signature Error Base Class.
 
-    当签名操作失败时抛出。
+    Raised when signature operation fails.
 
     Args:
-        message: 错误消息
-        details: 错误详情
+        message: Error message
+        details: Error details
     """
 
     def __init__(self, message: str, details: Optional[Any] = None) -> None:
@@ -432,12 +432,12 @@ class SignatureError(SDKError):
 
 class InvalidSignatureError(SignatureError):
     """
-    签名无效异常。
+    Invalid Signature Error.
 
-    当签名验证失败时抛出。
+    Raised when signature verification fails.
 
     Args:
-        reason: 无效原因
+        reason: Invalid reason
 
     Example:
         >>> raise InvalidSignatureError("Signature length mismatch")
@@ -450,12 +450,12 @@ class InvalidSignatureError(SignatureError):
 
 class SignerNotAvailableError(SignatureError):
     """
-    签名器不可用异常。
+    Signer Not Available Error.
 
-    当需要签名但未配置签名器时抛出。
+    Raised when a signer is required but not configured.
 
     Args:
-        reason: 不可用原因
+        reason: Reason for unavailability
 
     Example:
         >>> raise SignerNotAvailableError("Private key not configured")
@@ -466,18 +466,18 @@ class SignerNotAvailableError(SignatureError):
         self.code = "SIGNER_NOT_AVAILABLE"
 
 
-# ============ 数据相关异常 ============
+# ============ Data Exceptions ============
 
 
 class DataError(SDKError):
     """
-    数据处理错误基类。
+    Data Processing Error Base Class.
 
-    当数据格式或内容不正确时抛出。
+    Raised when data format or content is incorrect.
 
     Args:
-        message: 错误消息
-        details: 错误详情
+        message: Error message
+        details: Error details
     """
 
     def __init__(self, message: str, details: Optional[Any] = None) -> None:
@@ -486,13 +486,13 @@ class DataError(SDKError):
 
 class InvalidAddressError(DataError):
     """
-    地址格式无效异常。
+    Invalid Address Format Error.
 
-    当提供的区块链地址格式不正确时抛出。
+    Raised when provided blockchain address format is incorrect.
 
     Args:
-        address: 无效的地址
-        expected_format: 期望的格式描述
+        address: Invalid address
+        expected_format: Description of expected format
 
     Example:
         >>> raise InvalidAddressError("invalid_addr", "TRON base58 or 20 bytes hex")
@@ -512,13 +512,13 @@ class InvalidAddressError(DataError):
 
 class InvalidHashError(DataError):
     """
-    哈希格式无效异常。
+    Invalid Hash Format Error.
 
-    当提供的哈希值格式不正确时抛出。
+    Raised when provided hash value format is incorrect.
 
     Args:
-        value: 无效的哈希值
-        expected_length: 期望的字节长度
+        value: Invalid hash value
+        expected_length: Expected byte length
 
     Example:
         >>> raise InvalidHashError("0x123", expected_length=32)
@@ -534,12 +534,12 @@ class InvalidHashError(DataError):
 
 class SerializationError(DataError):
     """
-    序列化失败异常。
+    Serialization Failed Error.
 
-    当数据序列化或反序列化失败时抛出。
+    Raised when data serialization or deserialization fails.
 
     Args:
-        reason: 失败原因
+        reason: Failure reason
 
     Example:
         >>> raise SerializationError("Invalid JSON format")
@@ -552,13 +552,13 @@ class SerializationError(DataError):
 
 class DataLoadError(DataError):
     """
-    数据加载失败异常。
+    Data Load Failed Error.
 
-    当从 URI 加载数据失败时抛出。
+    Raised when loading data from URI fails.
 
     Args:
-        uri: 数据 URI
-        reason: 失败原因
+        uri: Data URI
+        reason: Failure reason
 
     Example:
         >>> raise DataLoadError("ipfs://Qm...", "Gateway timeout")
@@ -572,18 +572,18 @@ class DataLoadError(DataError):
         self.code = "DATA_LOAD_ERROR"
 
 
-# ============ 验证相关异常 ============
+# ============ Validation Exceptions ============
 
 
 class ValidationError(SDKError):
     """
-    验证相关错误基类。
+    Validation Error Base Class.
 
-    当验证操作失败时抛出。
+    Raised when validation operation fails.
 
     Args:
-        message: 错误消息
-        details: 错误详情
+        message: Error message
+        details: Error details
     """
 
     def __init__(self, message: str, details: Optional[Any] = None) -> None:
@@ -592,13 +592,13 @@ class ValidationError(SDKError):
 
 class RequestHashMismatchError(ValidationError):
     """
-    请求哈希不匹配异常。
+    Request Hash Mismatch Error.
 
-    当计算的请求哈希与预期不符时抛出。
+    Raised when calculated request hash does not match expected value.
 
     Args:
-        expected: 预期的哈希值
-        actual: 实际计算的哈希值
+        expected: Expected hash value
+        actual: Actually calculated hash value
 
     Example:
         >>> raise RequestHashMismatchError("0xaaa...", "0xbbb...")
@@ -614,13 +614,13 @@ class RequestHashMismatchError(ValidationError):
 
 class FeedbackAuthExpiredError(ValidationError):
     """
-    反馈授权已过期异常。
+    Feedback Authorization Expired Error.
 
-    当 feedbackAuth 的有效期已过时抛出。
+    Raised when feedbackAuth has expired.
 
     Args:
-        expiry: 授权过期时间（Unix 时间戳）
-        current: 当前时间（Unix 时间戳）
+        expiry: Authorization expiry time (Unix timestamp)
+        current: Current time (Unix timestamp)
 
     Example:
         >>> raise FeedbackAuthExpiredError(expiry=1700000000, current=1700001000)
@@ -636,12 +636,12 @@ class FeedbackAuthExpiredError(ValidationError):
 
 class FeedbackAuthInvalidError(ValidationError):
     """
-    反馈授权无效异常。
+    Feedback Authorization Invalid Error.
 
-    当 feedbackAuth 格式或签名无效时抛出。
+    Raised when feedbackAuth format or signature is invalid.
 
     Args:
-        reason: 无效原因
+        reason: Invalid reason
 
     Example:
         >>> raise FeedbackAuthInvalidError("Invalid signature")

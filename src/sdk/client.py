@@ -1,10 +1,10 @@
 """
-TRC-8004 SDK Agent 客户端模块
+TRON-8004 SDK Agent Client Module
 
-提供智能 HTTP 客户端，自动解析 Agent 元数据中的端点。
+Provides a smart HTTP client that automatically resolves endpoints from Agent metadata.
 
 Classes:
-    AgentClient: 智能 Agent HTTP 客户端
+    AgentClient: Smart Agent HTTP Client
 
 Example:
     >>> from sdk.client import AgentClient
@@ -15,9 +15,9 @@ Example:
     >>> response = client.post("quote", {"asset": "TRX/USDT", "amount": 100})
 
 Note:
-    - 支持从 Agent 元数据自动解析端点
-    - 遵循 A2A 协议的 URL 约定
-    - 支持 mock 模式用于测试
+    - Supports automatic endpoint resolution from Agent metadata
+    - Follows A2A protocol URL conventions
+    - Supports mock mode for testing
 """
 
 from typing import Dict, Any, Optional
@@ -27,24 +27,24 @@ import httpx
 
 class AgentClient:
     """
-    智能 Agent HTTP 客户端。
+    Smart Agent HTTP Client.
 
-    根据 Agent 元数据自动解析端点 URL，支持：
-    - 从 metadata.url 获取基础 URL
-    - 从 metadata.endpoints 获取 A2A 端点
-    - 从 metadata.skills 获取特定能力的端点
-    - 使用 A2A 协议约定构造 URL
+    Automatically resolves endpoint URLs based on Agent metadata. Supports:
+    - Getting base URL from metadata.url
+    - Getting A2A endpoint from metadata.endpoints
+    - Getting specific capability endpoint from metadata.skills
+    - Constructing URL using A2A protocol conventions
 
     Attributes:
-        metadata: Agent 元数据字典
-        base_url: 基础 URL（优先级低于 metadata）
+        metadata: Agent metadata dictionary
+        base_url: Base URL (lower priority than metadata)
 
     Args:
-        metadata: Agent 元数据，通常从 Central Service 获取
-        base_url: 基础 URL，作为 metadata 的回退
+        metadata: Agent metadata, usually fetched from Central Service
+        base_url: Base URL, fallback for metadata
 
     Example:
-        >>> # 使用元数据
+        >>> # Use metadata
         >>> client = AgentClient(metadata={
         ...     "url": "https://agent.example.com",
         ...     "skills": [{"id": "quote", "endpoint": "/custom/quote"}],
@@ -52,7 +52,7 @@ class AgentClient:
         >>> client.resolve_url("quote")
         'https://agent.example.com/custom/quote'
         >>>
-        >>> # 使用基础 URL
+        >>> # Use base URL
         >>> client = AgentClient(base_url="https://agent.example.com")
         >>> client.resolve_url("execute")
         'https://agent.example.com/a2a/execute'
@@ -64,48 +64,48 @@ class AgentClient:
         base_url: Optional[str] = None,
     ) -> None:
         """
-        初始化 Agent 客户端。
+        Initialize Agent Client.
 
         Args:
-            metadata: Agent 元数据字典，包含 url、endpoints、skills 等
-            base_url: 基础 URL，当 metadata 中没有 URL 时使用
+            metadata: Agent metadata dictionary, containing url, endpoints, skills, etc.
+            base_url: Base URL, used when no URL is in metadata
         """
         self.metadata = metadata or {}
         self.base_url = (base_url or "").rstrip("/")
 
     def resolve_url(self, capability: str) -> str:
         """
-        解析能力/技能对应的完整 URL。
+        Resolve the complete URL for a capability/skill.
 
-        解析优先级：
-        1. 检查 mock 模式
-        2. 从 metadata.url 或 base_url 获取基础 URL
-        3. 从 metadata.endpoints 查找 A2A 端点
-        4. 从 metadata.skills 查找特定能力的端点
-        5. 使用 A2A 协议约定：{base_url}/a2a/{capability}
+        Resolution priority:
+        1. Check mock mode
+        2. Get base URL from metadata.url or base_url
+        3. Find A2A endpoint from metadata.endpoints
+        4. Find specific capability endpoint from metadata.skills
+        5. Use A2A protocol convention: {base_url}/a2a/{capability}
 
         Args:
-            capability: 能力/技能名称（如 'quote', 'execute'）
+            capability: Capability/Skill name (e.g., 'quote', 'execute')
 
         Returns:
-            完整的端点 URL
+            Complete endpoint URL
 
         Raises:
-            ValueError: 无法找到基础 URL
+            ValueError: Base URL not found
 
         Example:
             >>> client = AgentClient(base_url="https://agent.example.com")
             >>> client.resolve_url("quote")
             'https://agent.example.com/a2a/quote'
         """
-        # 0. 检查 Mock 模式
+        # 0. Check Mock Mode
         if self.base_url == "mock":
             return "mock"
 
-        # 1. 获取基础 URL
+        # 1. Get Base URL
         base_url = self.metadata.get("url") or self.base_url
         if not base_url:
-            # 尝试从 endpoints 获取 A2A 端点
+            # Try to get A2A endpoint from endpoints
             for endpoint in self.metadata.get("endpoints", []):
                 if endpoint.get("name", "").lower() == "a2a":
                     base_url = endpoint.get("endpoint", "")
@@ -114,20 +114,20 @@ class AgentClient:
         if not base_url:
             raise ValueError(f"No Base URL found for agent to capability '{capability}'")
 
-        # 2. 检查 skills 中是否有特定端点
+        # 2. Check if specific endpoint exists in skills
         skills = self.metadata.get("skills", [])
         if skills:
             skill = next((s for s in skills if s.get("id") == capability), None)
             if skill:
                 endpoint = skill.get("endpoint") or skill.get("path")
                 if endpoint:
-                    # 绝对 URL
+                    # Absolute URL
                     if endpoint.startswith("http://") or endpoint.startswith("https://"):
                         return endpoint
-                    # 相对路径
+                    # Relative path
                     return f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
-        # 3. 使用 A2A 协议约定
+        # 3. Use A2A protocol convention
         return f"{base_url.rstrip('/')}/a2a/{capability}"
 
     def post(
@@ -137,20 +137,20 @@ class AgentClient:
         timeout: float = 10.0,
     ) -> Dict[str, Any]:
         """
-        向指定能力端点发送 POST 请求。
+        Send POST request to specific capability endpoint.
 
         Args:
-            capability: 能力/技能名称
-            json_data: 请求体 JSON 数据
-            timeout: 请求超时时间（秒）
+            capability: Capability/Skill name
+            json_data: Request body JSON data
+            timeout: Request timeout (seconds)
 
         Returns:
-            响应 JSON 数据
+            Response JSON data
 
         Raises:
-            ValueError: 无法解析 URL
-            httpx.HTTPStatusError: HTTP 请求失败
-            httpx.TimeoutException: 请求超时
+            ValueError: URL resolution failed
+            httpx.HTTPStatusError: HTTP request failed
+            httpx.TimeoutException: Request timed out
 
         Example:
             >>> response = client.post("quote", {
@@ -174,20 +174,20 @@ class AgentClient:
         timeout: float = 10.0,
     ) -> Dict[str, Any]:
         """
-        向指定能力端点发送 GET 请求。
+        Send GET request to specific capability endpoint.
 
         Args:
-            capability: 能力/技能名称
-            params: URL 查询参数
-            timeout: 请求超时时间（秒）
+            capability: Capability/Skill name
+            params: URL query parameters
+            timeout: Request timeout (seconds)
 
         Returns:
-            响应 JSON 数据
+            Response JSON data
 
         Raises:
-            ValueError: 无法解析 URL
-            httpx.HTTPStatusError: HTTP 请求失败
-            httpx.TimeoutException: 请求超时
+            ValueError: URL resolution failed
+            httpx.HTTPStatusError: HTTP request failed
+            httpx.TimeoutException: Request timed out
 
         Example:
             >>> response = client.get("status", params={"order_id": "123"})

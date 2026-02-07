@@ -1,12 +1,12 @@
 [project]
-name = "trc-8004-sdk"
+name = "tron-8004-sdk"
 version = "0.1.0b1"
-description = "TRC-8004 Agent SDK for TRON - Agent identity, reputation, and validation"
+description = "TRON-8004 Agent SDK for TRON - Agent identity, reputation, and validation"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
 authors = [{ name = "sun-protocol", email = "dev@sun.io" }]
-keywords = ["tron", "blockchain", "agent", "erc-8004", "trc-8004", "sdk"]
+keywords = ["tron", "blockchain", "agent", "erc-8004", "tron-8004", "sdk"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -32,13 +32,13 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sun-protocol/trc-8004-sdk"
-Documentation = "https://github.com/sun-protocol/trc-8004-sdk#readme"
-Repository = "https://github.com/sun-protocol/trc-8004-sdk"
-Issues = "https://github.com/sun-protocol/trc-8004-sdk/issues"
+Homepage = "https://github.com/open-aibank/tron-8004-sdk"
+Documentation = "https://github.com/open-aibank/tron-8004-sdk#readme"
+Repository = "https://github.com/open-aibank/tron-8004-sdk"
+Issues = "https://github.com/open-aibank/tron-8004-sdk/issues"
 
 [project.scripts]
-trc8004 = "sdk.cli:main"
+tron8004 = "sdk.cli:main"
 
 [tool.uv]
 package = true

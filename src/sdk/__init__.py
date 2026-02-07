@@ -1,11 +1,11 @@
 """
-TRC-8004 Agent SDK
+TRON-8004 Agent SDK
 
-去中心化 Agent 协作的 Python SDK，支持：
-- 身份注册与元数据管理 (IdentityRegistry)
-- 验证请求与响应 (ValidationRegistry)
-- 信誉反馈提交 (ReputationRegistry)
-- A2A 协议客户端
+Python SDK for decentralized Agent collaboration, supporting:
+- Identity Registration and Metadata Management (IdentityRegistry)
+- Validation Request and Response (ValidationRegistry)
+- Reputation Feedback Submission (ReputationRegistry)
+- A2A Protocol Client
 
 Quick Start:
     >>> from sdk import AgentSDK

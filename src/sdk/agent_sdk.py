@@ -24,6 +24,7 @@ Example:
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -146,7 +147,10 @@ class AgentSDK:
         if rpc_url is not None:
             self.config.rpc_url = rpc_url
         if network is not None:
-            self.config.network = network
+            normalized = network
+            if normalized in ("nile", "mainnet", "shasta"):
+                normalized = f"tron:{normalized}"
+            self.config.network = normalized
         if identity_registry is not None:
             self.config.identity_registry = identity_registry
         if validation_registry is not None:
@@ -314,7 +318,10 @@ class AgentSDK:
     def submit_reputation(
         self,
         agent_id: int,
-        score: int,
+        value: Optional[int] = None,
+        value_decimals: Optional[int] = None,
+        *,
+        score: Optional[int] = None,
         tag1: str = "",
         tag2: str = "",
         endpoint: str = "",
@@ -323,53 +330,38 @@ class AgentSDK:
         signer: Optional[Signer] = None,
     ) -> str:
         """
-        Submit reputation feedback (Jan 2026 Update).
+        Submit reputation feedback (Upgradeable).
 
-        Submit rating feedback for an Agent to ReputationRegistry.
-        
-        Note: Jan 2026 Update removed feedbackAuth pre-authorization mechanism.
-        Now anyone can submit feedback directly.
-        Spam/Sybil protection is handled via off-chain filtering and reputation systems.
-
-        Args:
-            agent_id: Agent ID
-            score: Score (0-100)
-            tag1: Tag 1 (optional, string)
-            tag2: Tag 2 (optional, string)
-            endpoint: Endpoint used (optional)
-            feedback_uri: Feedback file URI (optional)
-            feedback_hash: Feedback file hash (optional, not needed for IPFS)
-            signer: Custom signer (optional)
-
-        Returns:
-            Transaction ID
-
-        Raises:
-            ContractCallError: Contract call failed
-
-        Example:
-            >>> tx_id = sdk.submit_reputation(
-            ...     agent_id=1,
-            ...     score=95,
-            ...     tag1="execution",
-            ...     tag2="market-swap",
-            ...     endpoint="/a2a/x402/execute",
-            ... )
+        Upgradeable contract uses (value, valueDecimals) instead of score.
+        For backward compatibility, you may pass score=... and omit value/value_decimals.
         """
         signer = signer or self.signer
         if signer is None:
             raise SignerNotAvailableError()
 
+        if value is None:
+            if score is None:
+                raise ValueError("value or score is required")
+            value = score
+        if value_decimals is None:
+            value_decimals = 0
+
         params = [
             agent_id,
-            score,
+            int(value),
+            int(value_decimals),
             tag1,
             tag2,
             endpoint,
             feedback_uri,
             self._normalize_bytes32(feedback_hash),
         ]
-        logger.debug("submit_reputation: agent_id=%d, score=%d", agent_id, score)
+        logger.debug(
+            "submit_reputation: agent_id=%d, value=%d, decimals=%d",
+            agent_id,
+            value,
+            value_decimals,
+        )
         return self.contract_adapter.send("reputation", "giveFeedback", params, signer)
 
     def register_agent(
@@ -562,7 +554,7 @@ class AgentSDK:
 
         Example:
             >>> import time
-            >>> deadline = int(time.time()) + 3600  # 1 hour from now
+            >>> deadline = int(time.time()) + 300  # within 5 minutes
             >>> 
             >>> # Set own wallet (signer is both owner and wallet)
             >>> tx_id = sdk.set_agent_wallet(
@@ -588,10 +580,17 @@ class AgentSDK:
         if wallet_signer is None:
             raise SignerNotAvailableError("Wallet signer required for ownership proof")
 
+        # Enforce upgradeable contract deadline constraint (<= 5 minutes)
+        now = int(time.time())
+        if deadline > now + 300:
+            raise ValueError("deadline too far: must be within 5 minutes")
+
         # Build EIP-712 wallet ownership proof signature
+        owner_address = signer.get_address()
         signature = self._build_eip712_wallet_signature(
             agent_id=agent_id,
             wallet_address=wallet_address,
+            owner_address=owner_address,
             deadline=deadline,
             wallet_signer=wallet_signer,
         )
@@ -604,23 +603,25 @@ class AgentSDK:
         self,
         agent_id: int,
         wallet_address: str,
+        owner_address: str,
         deadline: int,
         wallet_signer: Signer,
     ) -> bytes:
         """
         Build EIP-712 wallet ownership proof signature (Jan 2026 Update).
 
-        EIP-712 Domain:
-            name: "ERC-8004 IdentityRegistry"
-            version: "1.1"
+        EIP-712 Domain (Upgradeable):
+            name: "ERC8004IdentityRegistry"
+            version: "1"
             chainId: <chain_id>
             verifyingContract: <identity_registry>
 
-        TypeHash: SetAgentWallet(uint256 agentId,address newWallet,uint256 deadline)
+        TypeHash: AgentWalletSet(uint256 agentId,address newWallet,address owner,uint256 deadline)
 
         Args:
             agent_id: Agent ID
             wallet_address: Wallet address
+            owner_address: Agent owner address (signer address)
             deadline: Signature expiration
             wallet_signer: Wallet signer
 
@@ -635,26 +636,27 @@ class AgentSDK:
 
         identity_registry = self.config.identity_registry or ""
 
-        # EIP-712 Domain Separator
+        # EIP-712 Domain Separator (Upgradeable)
         domain_type_hash = keccak256_bytes(
             b"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         )
         domain_separator = keccak256_bytes(b"".join([
             domain_type_hash,
-            keccak256_bytes(b"ERC-8004 IdentityRegistry"),
-            keccak256_bytes(b"1.1"),
+            keccak256_bytes(b"ERC8004IdentityRegistry"),
+            keccak256_bytes(b"1"),
             self._abi_encode_uint(chain_id),
             self._abi_encode_address(identity_registry),
         ]))
 
-        # SetAgentWallet struct hash
+        # AgentWalletSet struct hash (Upgradeable)
         set_agent_wallet_typehash = keccak256_bytes(
-            b"SetAgentWallet(uint256 agentId,address newWallet,uint256 deadline)"
+            b"AgentWalletSet(uint256 agentId,address newWallet,address owner,uint256 deadline)"
         )
         struct_hash = keccak256_bytes(b"".join([
             set_agent_wallet_typehash,
             self._abi_encode_uint(agent_id),
             self._abi_encode_address(wallet_address),
+            self._abi_encode_address(owner_address),
             self._abi_encode_uint(deadline),
         ]))
 
@@ -674,6 +676,28 @@ class AgentSDK:
             signature = signature[:64] + bytes([v])
 
         return signature
+
+    def unset_agent_wallet(
+        self,
+        agent_id: int,
+        signer: Optional[Signer] = None,
+    ) -> str:
+        """
+        Clear agentWallet (Upgradeable).
+
+        Args:
+            agent_id: Agent ID
+            signer: Custom signer (optional)
+
+        Returns:
+            Transaction ID
+        """
+        signer = signer or self.signer
+        if signer is None:
+            raise SignerNotAvailableError()
+        params = [agent_id]
+        logger.debug("unset_agent_wallet: agent_id=%d", agent_id)
+        return self.contract_adapter.send("identity", "unsetAgentWallet", params, signer)
     
     def set_agent_uri(
         self,
@@ -812,15 +836,15 @@ class AgentSDK:
 
         Returns:
             Validation result dictionary, containing:
-            - validatorAddress: Validator address (address(0) if no response yet)
-            - agentId: Agent ID (0 if no response yet)
-            - response: Validation score (0-100, or 0 if no response yet)
-            - tag: Tag (string)
-            - lastUpdate: Last update timestamp (0 if no response yet)
+            - validatorAddress
+            - agentId
+            - response
+            - responseHash
+            - tag
+            - lastUpdate
 
         Note:
-            Returns default values if request is pending (no response), does not raise exception.
-            To distinguish between non-existent requests and pending requests, use request_exists().
+            Upgradeable contract reverts if requestHash is unknown.
 
         Example:
             >>> result = sdk.get_validation_status("0x" + "aa" * 32)
@@ -828,13 +852,14 @@ class AgentSDK:
         """
         params = [self._normalize_bytes32(request_hash)]
         result = self.contract_adapter.call("validation", "getValidationStatus", params)
-        if isinstance(result, (list, tuple)) and len(result) >= 5:
+        if isinstance(result, (list, tuple)) and len(result) >= 6:
             return {
                 "validatorAddress": result[0],
                 "agentId": result[1],
                 "response": result[2],
-                "tag": result[3],
-                "lastUpdate": result[4],
+                "responseHash": result[3],
+                "tag": result[4],
+                "lastUpdate": result[5],
             }
         return result
 
@@ -853,48 +878,15 @@ class AgentSDK:
 
     def request_exists(self, request_hash: str) -> bool:
         """
-        Check if validation request exists (Jan 2026 Update).
-
-        Args:
-            request_hash: Validation request hash (32 bytes)
-
-        Returns:
-            True if exists, False otherwise
-
-        Example:
-            >>> exists = sdk.request_exists("0x" + "aa" * 32)
+        Upgradeable ValidationRegistry does NOT support requestExists.
         """
-        params = [self._normalize_bytes32(request_hash)]
-        return self.contract_adapter.call("validation", "requestExists", params)
+        raise NotImplementedError("request_exists is not supported by upgradeable ValidationRegistry")
 
     def get_validation_request(self, request_hash: str) -> dict:
         """
-        Get validation request details (Jan 2026 Update).
-
-        Args:
-            request_hash: Validation request hash (32 bytes)
-
-        Returns:
-            Request details dictionary, containing:
-            - validatorAddress: Validator address
-            - agentId: Agent ID
-            - requestURI: Request URI
-            - timestamp: Request timestamp
-
-        Example:
-            >>> request = sdk.get_validation_request("0x" + "aa" * 32)
-            >>> print(request["requestURI"])
+        Upgradeable ValidationRegistry does NOT support getRequest.
         """
-        params = [self._normalize_bytes32(request_hash)]
-        result = self.contract_adapter.call("validation", "getRequest", params)
-        if isinstance(result, (list, tuple)) and len(result) >= 4:
-            return {
-                "validatorAddress": result[0],
-                "agentId": result[1],
-                "requestURI": result[2],
-                "timestamp": result[3],
-            }
-        return result
+        raise NotImplementedError("get_validation_request is not supported by upgradeable ValidationRegistry")
 
     def get_validation_summary(
         self,
@@ -974,19 +966,23 @@ class AgentSDK:
 
         Returns:
             Summary result dictionary, containing:
-            - count: Feedback count
-            - averageScore: Average score
+            - count
+            - summaryValue
+            - summaryValueDecimals
 
         Example:
             >>> summary = sdk.get_feedback_summary(1)
             >>> print(f"Count: {summary['count']}, Avg: {summary['averageScore']}")
         """
-        params = [agent_id, client_addresses or [], tag1, tag2]
+        if not client_addresses:
+            raise ValueError("client_addresses is required for upgradeable ReputationRegistry")
+        params = [agent_id, client_addresses, tag1, tag2]
         result = self.contract_adapter.call("reputation", "getSummary", params)
-        if isinstance(result, (list, tuple)) and len(result) >= 2:
+        if isinstance(result, (list, tuple)) and len(result) >= 3:
             return {
                 "count": result[0],
-                "averageScore": result[1],
+                "summaryValue": result[1],
+                "summaryValueDecimals": result[2],
             }
         return result
 
@@ -1006,10 +1002,11 @@ class AgentSDK:
 
         Returns:
             Feedback details dictionary, containing:
-            - score: Score (0-100)
-            - tag1: Tag 1
-            - tag2: Tag 2
-            - isRevoked: Is revoked
+            - value
+            - valueDecimals
+            - tag1
+            - tag2
+            - isRevoked
 
         Example:
             >>> feedback = sdk.read_feedback(1, "TClient...", 0)
@@ -1017,12 +1014,13 @@ class AgentSDK:
         """
         params = [agent_id, client_address, feedback_index]
         result = self.contract_adapter.call("reputation", "readFeedback", params)
-        if isinstance(result, (list, tuple)) and len(result) >= 4:
+        if isinstance(result, (list, tuple)) and len(result) >= 5:
             return {
-                "score": result[0],
-                "tag1": result[1],
-                "tag2": result[2],
-                "isRevoked": result[3],
+                "value": result[0],
+                "valueDecimals": result[1],
+                "tag1": result[2],
+                "tag2": result[3],
+                "isRevoked": result[4],
             }
         return result
 

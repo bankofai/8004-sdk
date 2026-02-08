@@ -194,14 +194,16 @@ class TronContractAdapter(ContractAdapter):
             t = item.get("type", "")
             if t == "tuple" or t.startswith("tuple["):
                 components = item.get("components", [])
-                if components:
-                    inner = ",".join(expand_type(c) for c in components)
-                    if t == "tuple":
-                        return f"({inner})"
-                    else:
-                        # tuple[] -> (...)[]
-                        suffix = t[5:]  # Get [] part
-                        return f"({inner}){suffix}"
+                if not components:
+                    # Keep original tuple type when components are missing to avoid "()"
+                    return t
+                inner = ",".join(expand_type(c) for c in components)
+                if t == "tuple":
+                    return f"({inner})"
+                else:
+                    # tuple[] -> (...)[]
+                    suffix = t[5:]  # Get [] part
+                    return f"({inner}){suffix}"
             return t
         
         fixed = []

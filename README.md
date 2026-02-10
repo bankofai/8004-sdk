@@ -11,11 +11,11 @@ Python SDK for ERC/TRC-8004 agent registration, discovery, and reputation.
 ## Chain Support
 - EVM chains via `web3.py` (Ethereum/Base/BSC)
 - TRON chains via `tronpy` (Mainnet/Nile/Shasta)
-- One unified SDK entrypoint: `sdk.core.sdk.SDK`
+- One unified SDK entrypoint: `bankofai.erc_8004.core.sdk.SDK`
 
 ## Quick Start
 ```python
-from sdk.core.sdk import SDK
+from bankofai.erc_8004.core.sdk import SDK
 
 # TRON Nile
 tron_sdk = SDK(
@@ -38,7 +38,7 @@ bsc_sdk = SDK(
 ## Config Files
 - Network/address config: `resource/chains.json`
 - ABI records: `resource/contract_abis.json`
-- Runtime default registries and built-in ABI: `src/sdk/core/contracts.py`
+- Runtime default registries and built-in ABI: `src/bankofai/erc_8004/core/contracts.py`
 
 ## Notes
 - If no subgraph URL is configured, search/index features are limited, but on-chain actions still work.

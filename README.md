@@ -1,16 +1,45 @@
 # tron-8004-sdk
 
-This project is a Python SDK for ERC/TRC‑8004 style agent registration, discovery, and reputation.
+Python SDK for ERC/TRC-8004 agent registration, discovery, and reputation.
 
-It provides:
-- On-chain agent registration and metadata management (IdentityRegistry)
-- Reputation feedback submission (ReputationRegistry)
-- Optional validation request/response flows (ValidationRegistry)
-- Agent registration file helpers and OASF taxonomy support
+## What It Does
+- Register and update agents on-chain (`IdentityRegistry`)
+- Submit and read reputation feedback (`ReputationRegistry`)
+- Manage registration metadata/endpoints/OASF fields
+- Search/index agents (subgraph-dependent)
 
-EVM-compatible chains are supported via `web3.py` (e.g. Ethereum, Base, BSC).  
-TRON-specific support depends on the separate TRON adapter implementation.
+## Chain Support
+- EVM chains via `web3.py` (Ethereum/Base/BSC)
+- TRON chains via `tronpy` (Mainnet/Nile/Shasta)
+- One unified SDK entrypoint: `sdk.core.sdk.SDK`
 
-Notes:
+## Quick Start
+```python
+from sdk.core.sdk import SDK
+
+# TRON Nile
+tron_sdk = SDK(
+    chainId=1,
+    rpcUrl="https://nile.trongrid.io",
+    network="nile",  # also supports "tron:nile"
+    signer="<PRIVATE_KEY>",
+    feeLimit=120_000_000,
+)
+
+# BSC Testnet
+bsc_sdk = SDK(
+    chainId=97,
+    rpcUrl="https://data-seed-prebsc-1-s1.binance.org:8545",
+    network="evm:bsc",
+    signer="<PRIVATE_KEY>",
+)
+```
+
+## Config Files
+- Network/address config: `resource/chains.json`
+- ABI records: `resource/contract_abis.json`
+- Runtime default registries and built-in ABI: `src/sdk/core/contracts.py`
+
+## Notes
 - If no subgraph URL is configured, search/index features are limited, but on-chain actions still work.
-- BSC Mainnet/Testnet contract addresses are configured in `src/sdk/core/contracts.py`.
+- `setWallet()` currently supports EVM only (EIP-712 flow).

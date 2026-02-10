@@ -52,6 +52,16 @@ class Web3Client:
             raise ImportError("EVM dependencies not installed. Install with: pip install web3 eth-account") from exc
 
         self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
+        # BSC and other PoA-style EVM chains require PoA middleware to decode blocks.
+        try:
+            from web3.middleware import ExtraDataToPOAMiddleware
+            self.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+        except Exception:
+            try:
+                from web3.middleware.geth_poa import geth_poa_middleware
+                self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            except Exception:
+                pass
         if not self.w3.is_connected():
             raise ConnectionError("Failed to connect to EVM node")
 

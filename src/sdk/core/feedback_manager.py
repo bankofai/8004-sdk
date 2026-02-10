@@ -93,13 +93,19 @@ class FeedbackManager:
             tokenId = int(parts[1])
         else:
             tokenId = int(agentId)
-            agent_chain_id = int(self.web3_client.chain_id)
+            # TRON client may not expose an EVM-style chain id.
+            current_chain_id = getattr(self.web3_client, "chain_id", None)
+            if current_chain_id is None:
+                agent_chain_id = 0
+            else:
+                agent_chain_id = int(current_chain_id)
 
         # Ensure we are submitting the tx on the agent's chain
-        if int(self.web3_client.chain_id) != int(agent_chain_id):
+        current_chain_id = getattr(self.web3_client, "chain_id", None)
+        if current_chain_id is not None and int(current_chain_id) != int(agent_chain_id):
             raise ValueError(
                 f"Chain mismatch for giveFeedback: agentId={agentId} targets chainId={agent_chain_id}, "
-                f"but web3 client is connected to chainId={self.web3_client.chain_id}. "
+                f"but web3 client is connected to chainId={current_chain_id}. "
                 f"Initialize the SDK/Web3Client for chainId={agent_chain_id}."
             )
         
@@ -771,10 +777,11 @@ class FeedbackManager:
         
         # Fallback to blockchain (requires chain-specific web3 client)
         # For now, only works if chain matches SDK's default
-        if chain_id is not None and chain_id != self.web3_client.chain_id:
+        current_chain_id = getattr(self.web3_client, "chain_id", None)
+        if chain_id is not None and current_chain_id is not None and chain_id != current_chain_id:
             raise ValueError(
                 f"Blockchain reputation summary not supported for chain {chain_id}. "
-                f"SDK is configured for chain {self.web3_client.chain_id}. "
+                f"SDK is configured for chain {current_chain_id}. "
                 f"Use subgraph-based summary instead."
             )
         
@@ -786,6 +793,15 @@ class FeedbackManager:
         
         try:
             client_list = clientAddresses if clientAddresses else []
+            if not client_list:
+                try:
+                    client_list = self.web3_client.call_contract(
+                        self.reputation_registry,
+                        "getClients",
+                        tokenId,
+                    ) or []
+                except Exception:
+                    client_list = []
             tag1_str = tag1 if tag1 else ""
             tag2_str = tag2 if tag2 else ""
             

@@ -105,8 +105,11 @@ class SDK:
         # Get subgraph URL for current chain
         resolved_subgraph_url = None
         
+        # TRON does not use The Graph in this SDK path by default.
+        if self.chain_type == "tron":
+            resolved_subgraph_url = None
         # Priority 1: Chain-specific override
-        if chainId in self._subgraph_urls:
+        elif chainId in self._subgraph_urls:
             resolved_subgraph_url = self._subgraph_urls[chainId]
         # Priority 2: Default for chain
         elif chainId in DEFAULT_SUBGRAPH_URLS:

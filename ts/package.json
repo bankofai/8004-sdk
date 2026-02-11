@@ -26,11 +26,14 @@
     "lint": "npm run check",
     "test": "npm run check",
     "ci": "npm run clean && npm run check && npm run build",
+    "release": "npm run ci && npm pack",
     "prepack": "npm run ci",
     "prepublishOnly": "npm run ci"
   },
   "keywords": [
     "8004",
+    "erc-8004",
+    "trc-8004",
     "agent"
   ],
   "author": "BankOfAI",

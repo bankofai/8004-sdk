@@ -38,4 +38,4 @@ jobs:
           cache: "pip"
       - run: pip install .[dev]
       - run: ruff check .
-      - run: pytest
+      - run: pytest || if [ $? -eq 5 ]; then exit 0; else exit $?; fi

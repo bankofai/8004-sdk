@@ -18,7 +18,7 @@ from bankofai.erc_8004.core.sdk import SDK
 Current release supports local install only (not published to PyPI yet).
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/bankofai/8004-sdk.git
 cd 8004-sdk
 cd python
 pip install -e .

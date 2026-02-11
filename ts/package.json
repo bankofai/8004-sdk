@@ -4,7 +4,14 @@
   "description": "TypeScript SDK for ERC/TRC-8004 (BSC + TRON)",
   "type": "module",
   "main": "dist/index.js",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist/**/*",
     "README.md",
@@ -13,8 +20,14 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:watch": "tsc -p tsconfig.json --watch",
     "clean": "rm -rf dist",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "lint": "npm run check",
+    "test": "npm run check",
+    "ci": "npm run clean && npm run check && npm run build",
+    "prepack": "npm run ci",
+    "prepublishOnly": "npm run ci"
   },
   "keywords": [
     "erc-8004",
@@ -25,6 +38,17 @@
   ],
   "author": "BankOfAI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bankofai/8004-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bankofai/8004-sdk/issues"
+  },
+  "homepage": "https://github.com/bankofai/8004-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "graphql-request": "^7.2.0",
     "tronweb": "^6.0.4",

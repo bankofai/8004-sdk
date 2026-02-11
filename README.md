@@ -5,7 +5,7 @@ Current layout includes a Python SDK and a TypeScript SDK.
 
 ## Repository Structure
 
-- `python/`: Python SDK (`bankofai.erc_8004`)
+- `python/`: Python SDK (`bankofai.sdk_8004`)
 - `ts/`: TypeScript SDK (`@bankofai/8004-sdk`)
 
 ## Python SDK
@@ -14,7 +14,7 @@ Location:
 - `python/`
 
 Entrypoint:
-- `from bankofai.erc_8004.core.sdk import SDK`
+- `from bankofai.sdk_8004.core.sdk import SDK`
 
 Install (local editable):
 

@@ -42,7 +42,7 @@ Example (full-style, same pattern as samples):
 
 ```python
 import time
-from bankofai.erc_8004.core.sdk import SDK
+from bankofai.sdk_8004.core.sdk import SDK
 
 sdk = SDK(
     chainId=97,

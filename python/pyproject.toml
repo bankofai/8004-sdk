@@ -43,4 +43,4 @@ where = ["src"]
 include = ["bankofai*"]
 
 [tool.setuptools.package-data]
-"bankofai.erc_8004" = ["taxonomies/*.json"]
+"bankofai.sdk_8004" = ["taxonomies/*.json"]

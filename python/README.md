@@ -10,7 +10,7 @@ Multi-chain SDK for ERC/TRC-8004 agent registration and reputation.
 Entrypoint:
 
 ```python
-from bankofai.erc_8004.core.sdk import SDK
+from bankofai.sdk_8004.core.sdk import SDK
 ```
 
 ## Install (Local)
@@ -29,7 +29,7 @@ pip install -e .
 ### BSC Testnet
 
 ```python
-from bankofai.erc_8004.core.sdk import SDK
+from bankofai.sdk_8004.core.sdk import SDK
 
 sdk = SDK(
     chainId=97,
@@ -46,7 +46,7 @@ print(tx.wait_confirmed(timeout=180).result.agentId)
 ### TRON Nile
 
 ```python
-from bankofai.erc_8004.core.sdk import SDK
+from bankofai.sdk_8004.core.sdk import SDK
 
 sdk = SDK(
     chainId=1,

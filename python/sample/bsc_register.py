@@ -2,7 +2,7 @@
 
 import time
 
-from bankofai.erc_8004.core.sdk import SDK
+from bankofai.sdk_8004.core.sdk import SDK
 
 
 # Replace with your own key before running.

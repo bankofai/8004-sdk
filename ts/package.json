@@ -1,0 +1,41 @@
+{
+  "name": "bankofai-erc-8004-sdk-ts",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for ERC/TRC-8004 (BSC + TRON)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "erc-8004",
+    "trc-8004",
+    "agent",
+    "bsc",
+    "tron"
+  ],
+  "author": "BankOfAI",
+  "license": "MIT",
+  "dependencies": {
+    "graphql-request": "^7.2.0",
+    "tronweb": "^6.0.4",
+    "viem": "^2.37.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

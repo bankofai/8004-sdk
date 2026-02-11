@@ -63,7 +63,7 @@ const agent = sdk.createAgent({
 agent.setMCP("https://mcp.example.com/");
 agent.setA2A("https://a2a.example.com/.well-known/agent-card.json");
 agent.setTrust({ reputation: true, cryptoEconomic: true });
-agent.setMetadata({ version: "1.0.0" });
+agent.setMetadata({ version: "1.1.0" });
 agent.setActive(true);
 
 const tx = await agent.register("https://example.com/agent-card.json");

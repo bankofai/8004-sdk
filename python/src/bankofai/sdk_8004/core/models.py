@@ -95,7 +95,7 @@ class RegistrationFile:
         registrations = []
         if self.agentId:
             agent_id_int = int(self.agentId.split(":")[-1]) if ":" in self.agentId else int(self.agentId)
-            agent_registry = f"eip155:{chain_id}:{identity_registry_address}" if chain_id and identity_registry_address else f"eip155:1:{{identityRegistry}}"
+            agent_registry = f"eip155:{chain_id}:{identity_registry_address}" if chain_id and identity_registry_address else "eip155:1:{identityRegistry}"
             registrations.append({
                 "agentId": agent_id_int,
                 "agentRegistry": agent_registry

@@ -2,7 +2,7 @@
 Smart contract ABIs and interfaces for 8004.
 """
 
-from typing import Dict, List, Any
+from typing import Dict
 
 # ERC-721 ABI (minimal required functions)
 ERC721_ABI = [

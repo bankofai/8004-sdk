@@ -1,48 +1,43 @@
-# Release v1.0.0
+# Release v1.1.0
 
-This is the initial stable release of the **BankOfAI 8004 SDK**, providing a unified development interface for decentralized AI agent identity, reputation, and validation across EVM and Tron networks.
+The **BankOfAI 8004 SDK v1.1.0** introduces significant enhancements to agent lifecycle management, reputation interactions, and discovery features across both TypeScript and Python platforms.
 
-## 🚀 Key Features
+## 🚀 What's New
 
-### 🌐 Multi-Chain Support
-- Full compatibility with **EVM** (e.g., BSC, Base) and **Tron** (Mainnet, Nile, Shasta).
-- Unified chain resolution and contract address management via `chains.json`.
+### 🛠 Enhanced Agent Lifecycle
+- **Ownership & Control**: New `transfer()`, `addOperator()`, and `removeOperator()` methods provide granular control over agent identities.
+- **Data Persistence**: `loadAgent()` allows developers to fully hydrate agent objects from a mix of on-chain metadata and off-chain (IPFS/HTTP) agent cards.
+- **Updates**: Support for updating agent registration URIs and on-chain metadata keys post-registration.
 
-### 🆔 Agent Identity (ERC/TRC-8004)
-- **Registration**: Easily register agent cards with IPFS or HTTP URIs.
-- **Wallet Binding**: Securely link verified wallets to agent identities on-chain.
-- **Metadata**: Manage custom agent attributes, endpoints (MCP/A2A), and skills.
+### ⭐ Advanced Reputation Features
+- **Two-Way Feedback**: Agents can now respond to user feedback using the `appendResponse()` flow.
+- **Feedback Management**: Reviewers can retract their feedback using `revokeFeedback()`.
+- **Granular Search**: The new `searchFeedback()` API supports filtering by tags, value ranges, reviewer addresses, and specific agent capabilities/skills.
 
-### ⭐ Reputation & Trust
-- **Feedback Flow**: Submit and retrieve agent feedback with high-precision decimal values.
-- **Tagging**: Categorize reputation using dual tags (`tag1`, `tag2`) for granular filtering.
-- **Aggregated Summaries**: Fetch real-time average ratings and feedback counts.
+### 📦 IPFS Integration
+- Native support for IPFS-based registration flows.
+- Customizable `ipfsUploader` hook for integrating with any pinning service.
+- Automatic CID-to-Gateway resolution for fetching agent cards.
 
-### ✅ Validation Framework
-- **Request/Response**: Standardized on-chain flow for users to request behavioral validation from agents.
-- **Proof of Action**: Securely track and verify agent responses.
-
-### 🔍 Discovery & Search
-- **Agent Indexer**: Efficiently search for agents by name, description, tools, or status.
-- **Parity**: Seamless experience across **TypeScript** and **Python** SDKs.
+### 🐍 Python & TypeScript Parity
+- Full feature parity maintained between both SDKs.
+- Unified naming conventions and consistent error handling.
 
 ## 📦 Installation
 
 ### TypeScript
 ```bash
-npm install @bankofai/8004-sdk
+npm install @bankofai/8004-sdk@1.1.0
 ```
 
 ### Python
 ```bash
-pip install bankofai-8004-sdk
+pip install bankofai-8004-sdk==1.1.0
 ```
 
 ## 🛠 Developer Resources
-- **Guidelines**: Check [AGENTS.md](AGENTS.md) for coding standards and synchronization rules.
-- **Examples**: 
-  - TS: `ts/examples/`
-  - Python: `python/sample/`
+- **Updated Examples**: Check out the new response and transfer samples in `ts/examples/` and `python/sample/`.
+- **Guidelines**: Refer to [AGENTS.md](AGENTS.md) for the latest synchronization standards.
 
 ---
-**Full Changelog**: https://github.com/bankofai/8004-sdk/commits/v1.0.0
+**Full Changelog**: https://github.com/bankofai/8004-sdk/compare/v1.0.0...v1.1.0

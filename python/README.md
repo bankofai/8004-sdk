@@ -60,7 +60,7 @@ agent = sdk.createAgent(
 agent.setMCP("https://mcp.example.com/")
 agent.setA2A("https://a2a.example.com/.well-known/agent-card.json")
 agent.setTrust(reputation=True, cryptoEconomic=True)
-agent.setMetadata({"version": "1.0.0"})
+agent.setMetadata({"version": "1.1.0"})
 agent.setActive(True)
 
 tx = agent.register("https://example.com/agent-card.json")

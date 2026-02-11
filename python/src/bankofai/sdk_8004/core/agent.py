@@ -14,16 +14,15 @@ from .models import (
     AgentId, Address, URI, Timestamp, IdemKey,
     EndpointType, TrustModel, Endpoint, RegistrationFile
 )
-from .web3_client import Web3Client
 from .endpoint_crawler import EndpointCrawler
 from .oasf_validator import validate_skill, validate_domain
 
 if TYPE_CHECKING:
     from .sdk import SDK
 
-logger = logging.getLogger(__name__)
-
 from .transaction_handle import TransactionHandle
+
+logger = logging.getLogger(__name__)
 
 TRON_EIP712_CHAIN_IDS = {
     "mainnet": 728126428,
@@ -502,7 +501,7 @@ class Agent:
         self.registration_file.updatedAt = int(time.time())
         return self
 
-    def trustModels(self, models: List[Union[TrustModel, str]]) -> 'Agent':
+    def trustModels(self, models: List[Union[TrustModel, str]]) -> 'Agent':  # noqa: F811
         """Set trust models (replace set)."""
         self.registration_file.trustModels = models
         self.registration_file.updatedAt = int(time.time())
@@ -1005,9 +1004,6 @@ class Agent:
         # If no Transfer event found, try to get the token ID from the transaction
         # This is a fallback for cases where the event might not be properly indexed
         try:
-            # Get the transaction details
-            tx = self.sdk.web3_client.w3.eth.get_transaction(receipt['transactionHash'])
-            
             # Try to call the contract to get the latest token ID
             # This assumes the contract has a method to get the total supply or latest ID
             try:
@@ -1145,7 +1141,7 @@ class Agent:
             compute_result=lambda _receipt: {"txHash": txHash, "operator": operator},
         )
 
-    def transfer(self, newOwnerAddress: str) -> TransactionHandle[Dict[str, Any]]:
+    def transfer(self, newOwnerAddress: str) -> TransactionHandle[Dict[str, Any]]:  # noqa: F811
         """Transfer agent ownership to a new address.
         
         Only the current owner can transfer the agent.
@@ -1244,4 +1240,4 @@ class Agent:
     def saveToFile(self, filePath: str) -> None:
         """Save registration file to local file."""
         with open(filePath, 'w') as f:
-            f.write(self.to_json())
+            f.write(self.toJson())

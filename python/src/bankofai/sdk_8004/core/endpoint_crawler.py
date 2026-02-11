@@ -8,7 +8,6 @@ import logging
 import requests
 import json
 from typing import Optional, Dict, Any, List
-from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +117,7 @@ class EndpointCrawler:
                         mcp_prompts.append(prompt["name"])
             
             if mcp_tools or mcp_resources or mcp_prompts:
-                logger.info(f"Successfully fetched MCP capabilities via JSON-RPC")
+                logger.info("Successfully fetched MCP capabilities via JSON-RPC")
                 return {
                     'mcpTools': mcp_tools,
                     'mcpResources': mcp_resources,

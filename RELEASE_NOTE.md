@@ -37,7 +37,6 @@ pip install bankofai-8004-sdk==1.1.0
 
 ## 🛠 Developer Resources
 - **Updated Examples**: Check out the new response and transfer samples in `ts/examples/` and `python/sample/`.
-- **Guidelines**: Refer to [AGENTS.md](AGENTS.md) for the latest synchronization standards.
 
 ---
 **Full Changelog**: https://github.com/bankofai/8004-sdk/compare/v1.0.0...v1.1.0

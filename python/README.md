@@ -15,6 +15,8 @@ from bankofai.erc_8004.core.sdk import SDK
 
 ## Install (Local)
 
+Current release supports local install only (not published to PyPI yet).
+
 ```bash
 git clone <your-repo-url>
 cd tron-8004-sdk
@@ -73,8 +75,8 @@ Details: `sample/README.md`
 ## Notes
 
 - Version starts at `1.0.0` in this repository.
-- Search depends on subgraph URLs (`DEFAULT_SUBGRAPH_URLS` / `subgraphOverrides`).
-- TRON subgraph search is not enabled in current runtime path.
+- `subgraph URL` is not supported in the current release.
+- Subgraph-based search will be supported in a future update.
 - `setWallet()` uses EIP-712-style signature verification on both EVM and TRON.
 - TRON contracts reject self-feedback; use a separate reviewer wallet.
 

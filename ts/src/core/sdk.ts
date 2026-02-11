@@ -1,0 +1,332 @@
+import chainsJson from "../../resource/chains.json" with { type: "json" };
+import { keccak256, toBytes, type Abi, type Hex } from "viem";
+
+import { Agent } from "./agent.js";
+import { EvmAdapter, resolveChainFromConfig, TronAdapter, type ChainAdapter } from "./chains.js";
+import { TransactionHandle } from "./transaction-handle.js";
+import { getIdentityRegistryAbi, getReputationRegistryAbi, getValidationRegistryAbi } from "./contracts.js";
+import { SubgraphClient } from "./subgraph-client.js";
+import { AgentIndexer } from "./indexer.js";
+import type {
+  AgentSummary,
+  FeedbackRecord,
+  GiveFeedbackParams,
+  RegistrationFile,
+  RegistrationResult,
+  ReputationSummary,
+  SDKConfig,
+  SearchFilters,
+  SearchOptions,
+  ValidationRequestParams,
+  ValidationResponseParams,
+  ValidationStatus,
+} from "../models/types.js";
+
+export class SDK {
+  readonly chainType: "evm" | "tron";
+  readonly network: string;
+  readonly rpcUrl: string;
+  readonly chainId: number;
+  readonly signer?: string;
+  readonly feeLimit: number;
+
+  readonly identityRegistry: string;
+  readonly reputationRegistry: string;
+  readonly validationRegistry: string;
+
+  readonly identityRegistryAbi: Abi;
+  readonly reputationRegistryAbi: Abi;
+  readonly validationRegistryAbi: Abi;
+
+  readonly chain: ChainAdapter;
+  readonly indexer: AgentIndexer;
+  readonly subgraphClients: Map<number, SubgraphClient>;
+
+  private static readonly TRON_EIP712_CHAIN_IDS: Record<string, number> = {
+    mainnet: 728126428,
+    nile: 3448148188,
+    shasta: 2494104990,
+  };
+  private static readonly DEFAULT_SUBGRAPH_URLS: Record<number, string> = {
+    56: "",
+    97: "",
+  };
+
+  constructor(config: SDKConfig) {
+    const resolved = resolveChainFromConfig(chainsJson, config.network, config.chainId, config.rpcUrl);
+
+    this.chainType = resolved.chainType;
+    this.network = resolved.resolvedNetwork;
+    this.rpcUrl = resolved.rpcUrl;
+    this.chainId = config.chainId ?? (this.chainType === "evm" ? 97 : 1);
+    this.signer = config.signer;
+    this.feeLimit = config.feeLimit ?? 120_000_000;
+
+    this.identityRegistry = resolved.contracts.identityRegistry;
+    this.reputationRegistry = resolved.contracts.reputationRegistry;
+    this.validationRegistry = resolved.contracts.validationRegistry;
+
+    this.identityRegistryAbi = getIdentityRegistryAbi(this.chainType) as Abi;
+    this.reputationRegistryAbi = getReputationRegistryAbi(this.chainType) as Abi;
+    this.validationRegistryAbi = getValidationRegistryAbi(this.chainType) as Abi;
+
+    this.chain = this.chainType === "evm"
+      ? new EvmAdapter(this.rpcUrl, this.chainId, this.signer)
+      : new TronAdapter(this.rpcUrl, this.signer, this.feeLimit);
+
+    this.subgraphClients = new Map<number, SubgraphClient>();
+    const mergedSubgraph = {
+      ...SDK.DEFAULT_SUBGRAPH_URLS,
+      ...(config.subgraphOverrides || {}),
+    };
+    if (config.subgraphUrl) mergedSubgraph[this.chainId] = config.subgraphUrl;
+    for (const [k, v] of Object.entries(mergedSubgraph)) {
+      const cid = Number(k);
+      if (v && String(v).trim()) this.subgraphClients.set(cid, new SubgraphClient(v));
+    }
+    this.indexer = new AgentIndexer(this.chainId, this.subgraphClients);
+  }
+
+  createAgent(input: { name: string; description: string; image?: string }): Agent {
+    const registrationFile: RegistrationFile = {
+      name: input.name,
+      description: input.description,
+      image: input.image,
+      endpoints: [],
+      tags: [],
+      metadata: {},
+      supportedTrust: [],
+      active: true,
+      x402support: false,
+      updatedAt: Math.floor(Date.now() / 1000),
+    };
+
+    return new Agent(this, registrationFile);
+  }
+
+  async submitRegister(agentURI: string): Promise<TransactionHandle<RegistrationResult>> {
+    const txHash = await this.chain.registerAgent(this.identityRegistry, this.identityRegistryAbi, agentURI);
+    return new TransactionHandle<RegistrationResult>(
+      txHash,
+      this.chain,
+      async (receipt) => {
+        const agentNum = this.chain.parseRegisteredAgentId(receipt);
+        return {
+          agentId: agentNum ? `${this.chainId}:${agentNum}` : undefined,
+          agentURI,
+        };
+      },
+    );
+  }
+
+  async getAgentWallet(agentId: string | number): Promise<string | undefined> {
+    const id = typeof agentId === "number" ? BigInt(agentId) : BigInt(String(agentId).split(":").pop() as string);
+    const wallet = await this.chain.getAgentWallet(this.identityRegistry, this.identityRegistryAbi, id);
+
+    if (!wallet) return undefined;
+    const evm = this.chain.toEvmAddress(wallet).toLowerCase();
+    if (evm === "0x0000000000000000000000000000000000000000") return undefined;
+    if (wallet.toLowerCase() === "t9yd14nj9j7xab4dbgeix9h8unkkhxuwwb") return undefined;
+    return this.chain.toChainAddress(wallet);
+  }
+
+  private parseAgentTokenId(agentId: string | number): bigint {
+    if (typeof agentId === "number") return BigInt(agentId);
+    const token = String(agentId).split(":").pop();
+    if (!token) throw new Error(`Invalid agentId: ${agentId}`);
+    return BigInt(token);
+  }
+
+  private normalizeAgentId(agentId: string | number): string {
+    if (typeof agentId === "number") return `${this.chainId}:${agentId}`;
+    if (String(agentId).includes(":")) return String(agentId);
+    return `${this.chainId}:${agentId}`;
+  }
+
+  private encodeFeedbackValue(value: number): { raw: bigint; decimals: number } {
+    const decimals = 6;
+    const raw = BigInt(Math.round(value * 10 ** decimals));
+    return { raw, decimals };
+  }
+
+  private toBytes32(input?: string, fallback?: string): Hex {
+    if (input && input.startsWith("0x") && input.length === 66) return input.toLowerCase() as Hex;
+    const src = input || fallback;
+    if (src) return keccak256(toBytes(src));
+    return `0x${"00".repeat(32)}` as Hex;
+  }
+
+  async giveFeedback(params: GiveFeedbackParams): Promise<TransactionHandle<{ agentId: string; reviewer: string; feedbackIndex: number }>> {
+    const tokenId = this.parseAgentTokenId(params.agentId);
+    const agentId = this.normalizeAgentId(params.agentId);
+    const { raw, decimals } = this.encodeFeedbackValue(params.value);
+    const reviewerChain = params.reviewerSigner
+      ? (this.chainType === "evm"
+        ? new EvmAdapter(this.rpcUrl, this.chainId, params.reviewerSigner)
+        : new TronAdapter(this.rpcUrl, params.reviewerSigner, this.feeLimit))
+      : this.chain;
+    const reviewer = reviewerChain.signerAddress;
+    if (!reviewer) throw new Error("Signer is required for giveFeedback");
+
+    const txHash = await reviewerChain.giveFeedback(
+      this.reputationRegistry,
+      this.reputationRegistryAbi,
+      tokenId,
+      raw,
+      decimals,
+      params.tag1 ?? "",
+      params.tag2 ?? "",
+      params.endpoint ?? "",
+      params.feedbackURI ?? "",
+      this.toBytes32(params.feedbackHash, params.feedbackURI),
+    );
+
+    return new TransactionHandle(txHash, reviewerChain, async () => {
+      const idx = await reviewerChain.getLastIndex(
+        this.reputationRegistry,
+        this.reputationRegistryAbi,
+        tokenId,
+        reviewer,
+      );
+      return {
+        agentId,
+        reviewer: reviewerChain.toChainAddress(reviewer),
+        feedbackIndex: Number(idx),
+      };
+    });
+  }
+
+  async getFeedback(agentIdInput: string | number, reviewerAddress: string, feedbackIndex: number): Promise<FeedbackRecord> {
+    const tokenId = this.parseAgentTokenId(agentIdInput);
+    const agentId = this.normalizeAgentId(agentIdInput);
+    const reviewer = this.chain.toChainAddress(reviewerAddress);
+    const [valueRaw, valueDecimals, tag1, tag2, isRevoked] = await this.chain.readFeedback(
+      this.reputationRegistry,
+      this.reputationRegistryAbi,
+      tokenId,
+      reviewer,
+      BigInt(feedbackIndex),
+    );
+
+    const divisor = 10 ** valueDecimals;
+    const value = Number(valueRaw) / divisor;
+    return {
+      agentId,
+      reviewer,
+      feedbackIndex,
+      value,
+      valueDecimals,
+      tag1,
+      tag2,
+      isRevoked,
+    };
+  }
+
+  async getReputationSummary(
+    agentIdInput: string | number,
+    clientAddresses: string[] = [],
+    tag1 = "",
+    tag2 = "",
+  ): Promise<ReputationSummary> {
+    const tokenId = this.parseAgentTokenId(agentIdInput);
+    const agentId = this.normalizeAgentId(agentIdInput);
+    let clients = clientAddresses;
+    if (!clients.length) {
+      clients = await this.chain.getClients(
+        this.reputationRegistry,
+        this.reputationRegistryAbi,
+        tokenId,
+      );
+      if (!clients.length) {
+        return {
+          agentId,
+          count: 0,
+          summaryValue: 0,
+          summaryValueDecimals: 0,
+          averageValue: 0,
+        };
+      }
+    }
+
+    const [count, summaryValue, summaryValueDecimals] = await this.chain.getSummary(
+      this.reputationRegistry,
+      this.reputationRegistryAbi,
+      tokenId,
+      clients,
+      tag1,
+      tag2,
+    );
+    const averageValue = Number(summaryValue) / (10 ** summaryValueDecimals);
+    return {
+      agentId,
+      count: Number(count),
+      summaryValue: Number(summaryValue),
+      summaryValueDecimals,
+      averageValue,
+    };
+  }
+
+  async validationRequest(params: ValidationRequestParams): Promise<TransactionHandle<{ requestHash: Hex; agentId: string }>> {
+    const tokenId = this.parseAgentTokenId(params.agentId);
+    const agentId = this.normalizeAgentId(params.agentId);
+    const requestHash = this.toBytes32(params.requestHash, params.requestURI);
+    const txHash = await this.chain.validationRequest(
+      this.validationRegistry,
+      this.validationRegistryAbi,
+      params.validatorAddress,
+      tokenId,
+      params.requestURI,
+      requestHash,
+    );
+
+    return new TransactionHandle(txHash, this.chain, async () => ({ requestHash, agentId }));
+  }
+
+  async validationResponse(params: ValidationResponseParams): Promise<TransactionHandle<{ requestHash: Hex; response: number }>> {
+    const responseHash = this.toBytes32(params.responseHash, params.responseURI);
+    const txHash = await this.chain.validationResponse(
+      this.validationRegistry,
+      this.validationRegistryAbi,
+      params.requestHash,
+      params.response,
+      params.responseURI ?? "",
+      responseHash,
+      params.tag ?? "",
+    );
+    return new TransactionHandle(txHash, this.chain, async () => ({ requestHash: params.requestHash, response: params.response }));
+  }
+
+  async getValidationStatus(requestHash: Hex): Promise<ValidationStatus> {
+    const [validatorAddress, agentIdNum, response, responseHash, tag, lastUpdate] = await this.chain.getValidationStatus(
+      this.validationRegistry,
+      this.validationRegistryAbi,
+      requestHash,
+    );
+    return {
+      validatorAddress: this.chain.toChainAddress(validatorAddress),
+      agentId: `${this.chainId}:${agentIdNum.toString()}`,
+      response,
+      responseHash,
+      tag,
+      lastUpdate: Number(lastUpdate),
+    };
+  }
+
+  getTypedDataChainId(): number {
+    if (this.chainType !== "tron") return this.chainId;
+    const key = (this.network || "").toLowerCase().split(":").pop() || "nile";
+    return SDK.TRON_EIP712_CHAIN_IDS[key] ?? this.chainId;
+  }
+
+  getSubgraphClient(chainId?: number): SubgraphClient | undefined {
+    return this.subgraphClients.get(chainId ?? this.chainId);
+  }
+
+  async searchAgents(filters: SearchFilters = {}, options: SearchOptions = {}, chainId?: number): Promise<AgentSummary[]> {
+    return this.indexer.searchAgents(filters, options, chainId);
+  }
+
+  async getAgent(agentId: string): Promise<AgentSummary | undefined> {
+    return this.indexer.getAgent(agentId);
+  }
+}

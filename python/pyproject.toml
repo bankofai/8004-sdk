@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bankofai-erc-8004-sdk"
+version = "1.0.0"
+description = "Multi-chain ERC/TRC-8004 SDK for agent registration and reputation"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+  { name = "BankOfAI" }
+]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+  "aiohttp>=3.9.0",
+  "requests>=2.31.0",
+  "tronpy>=0.6.2",
+  "web3>=7.0.0",
+  "eth-account>=0.13.0",
+  "eth-hash>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "python-dotenv>=1.0.0",
+  "pytest>=8.0.0",
+  "pytest-cov>=4.0.0",
+  "build>=1.2.0",
+  "twine>=5.0.0",
+  "ruff>=0.6.0",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["bankofai*"]
+
+[tool.setuptools.package-data]
+"bankofai.erc_8004" = ["taxonomies/*.json"]

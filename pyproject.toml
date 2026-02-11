@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bankofai-erc-8004-sdk"
-version = "0.1.0b2"
+version = "1.0.0"
 description = "Multi-chain ERC/TRC-8004 SDK for agent registration and reputation"
 readme = "README.md"
 requires-python = ">=3.11"

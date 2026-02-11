@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-02-11
+
+### Fixed
+- **Packaging (TS)**: Included missing `resource/`, `README.md`, and `LICENSE` files in the published TypeScript package. This ensures contract ABIs and chain configurations are available at runtime.
+- **CI**: Fixed Python CI workflow to correctly handle environments with no tests and improved overall build stability.
+
+### Changed
+- **Parity**: Synchronized version to `1.1.1` across both TypeScript and Python SDKs.
+
 ## [1.1.0] - 2026-02-11
 
 ### Added

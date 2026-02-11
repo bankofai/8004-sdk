@@ -1,7 +1,7 @@
 {
   "name": "@bankofai/8004-sdk",
   "version": "1.0.0",
-  "description": "TypeScript SDK for 8004",
+  "description": "TypeScript SDK for 8004. Supports agent registration, reputation, and validation flows.",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -23,12 +23,17 @@
     "build:watch": "tsc -p tsconfig.json --watch",
     "clean": "rm -rf dist",
     "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/index.ts",
     "lint": "npm run check",
     "test": "npm run check",
     "ci": "npm run clean && npm run check && npm run build",
-    "release": "npm run ci && npm pack",
+    "pack": "npm run ci && npm pack",
+    "release": "npm run ci && npm publish",
     "prepack": "npm run ci",
-    "prepublishOnly": "npm run ci"
+    "prepublishOnly": "npm run ci",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major"
   },
   "keywords": [
     "8004",
@@ -36,7 +41,7 @@
     "trc-8004",
     "agent"
   ],
-  "author": "BankOfAI",
+  "author": "bankofai <support@bankofai.io>",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -60,6 +65,6 @@
     "typescript": "^5.8.2"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.0.0"
   }
 }

@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 
 from .transaction_handle import TransactionHandle
 
+TRON_EIP712_CHAIN_IDS = {
+    "mainnet": 728126428,
+    "nile": 3448148188,
+    "shasta": 2494104990,
+}
+
 
 class Agent:
     """Represents an individual agent with its registration data."""
@@ -96,6 +102,12 @@ class Agent:
 
         if not wallet or not isinstance(wallet, str):
             return None
+
+        try:
+            if self.sdk.web3_client.to_evm_address(wallet).lower() == "0x0000000000000000000000000000000000000000":
+                return None
+        except Exception:
+            pass
 
         if wallet.lower() == "0x0000000000000000000000000000000000000000":
             return None
@@ -546,25 +558,18 @@ class Agent:
                 "Call agent.register(...) / agent.registerIPFS() first to obtain agentId."
             )
 
-        if getattr(self.sdk.web3_client, "chain_type", "evm") != "evm":
-            raise NotImplementedError(
-                "setWallet() currently supports EVM chains only (EIP-712 path)."
-            )
-
-        addr = new_wallet
-
-        if not addr:
+        if not new_wallet:
             raise ValueError("Wallet address cannot be empty. Use a non-zero address.")
-        
-        # Validate address format
-        if not addr.startswith("0x") or len(addr) != 42:
-            raise ValueError(f"Invalid Ethereum address format: {addr}. Must be 42 characters starting with '0x'")
-        
-        # Validate hexadecimal characters
+
+        is_tron = getattr(self.sdk.web3_client, "chain_type", "evm") == "tron"
         try:
-            int(addr[2:], 16)
-        except ValueError:
-            raise ValueError(f"Invalid hexadecimal characters in address: {addr}")
+            addr_evm = self.sdk.web3_client.to_evm_address(new_wallet)
+            addr_chain = self.sdk.web3_client.to_chain_address(new_wallet)
+        except Exception as e:
+            raise ValueError(f"Invalid wallet address format: {new_wallet}. {e}")
+
+        if addr_evm.lower() == "0x0000000000000000000000000000000000000000":
+            raise ValueError("Wallet address cannot be zero address.")
         
         # Determine chain ID to use (local bookkeeping)
         if chainId is None:
@@ -583,10 +588,10 @@ class Agent:
         # Check if wallet is already set to this address (skip if same)
         try:
             current_wallet = self.getWallet()
-            if current_wallet and current_wallet.lower() == addr.lower():
-                logger.debug(f"Agent wallet is already set to {addr}, skipping on-chain update")
+            if current_wallet and self.sdk.web3_client.address_equal(current_wallet, addr_chain):
+                logger.debug(f"Agent wallet is already set to {addr_chain}, skipping on-chain update")
                 # Still update local registration file
-                self.registration_file.walletAddress = addr
+                self.registration_file.walletAddress = addr_chain
                 self.registration_file.walletChainId = chainId
                 self.registration_file.updatedAt = int(time.time())
                 return None
@@ -599,15 +604,27 @@ class Agent:
         
         # Resolve typed data + signature
         identity_registry_address = self.sdk.identity_registry.address
-        owner_address = self.sdk.web3_client.call_contract(self.sdk.identity_registry, "ownerOf", agent_id_int)
+        identity_registry_address_evm = self.sdk.web3_client.to_evm_address(identity_registry_address)
+        owner_address_chain = self.sdk.web3_client.call_contract(self.sdk.identity_registry, "ownerOf", agent_id_int)
+        owner_address = self.sdk.web3_client.to_evm_address(owner_address_chain)
+
+        typed_data_chain_id = self.sdk.web3_client.chain_id
+        if typed_data_chain_id is None:
+            if is_tron:
+                network_name = (self.sdk.network or "").lower().strip()
+                if ":" in network_name:
+                    network_name = network_name.split(":", 1)[1]
+                typed_data_chain_id = TRON_EIP712_CHAIN_IDS.get(network_name)
+            if typed_data_chain_id is None:
+                typed_data_chain_id = int(self.sdk.chainId)
 
         full_message = self.sdk.web3_client.build_agent_wallet_set_typed_data(
             agent_id=agent_id_int,
-            new_wallet=addr,
+            new_wallet=addr_evm,
             owner=owner_address,
             deadline=deadline,
-            verifying_contract=identity_registry_address,
-            chain_id=self.sdk.web3_client.chain_id,
+            verifying_contract=identity_registry_address_evm,
+            chain_id=typed_data_chain_id,
         )
 
         if signature is None:
@@ -617,36 +634,52 @@ class Agent:
                 try:
                     from eth_account import Account as _Account
                     if isinstance(new_wallet_signer, str):
-                        signer_addr = _Account.from_key(new_wallet_signer).address
+                        signer_addr = _Account.from_key(
+                            new_wallet_signer[2:] if new_wallet_signer.startswith("0x") else new_wallet_signer
+                        ).address
                     else:
                         signer_addr = getattr(new_wallet_signer, "address", None)
+                        if signer_addr and is_tron:
+                            signer_addr = self.sdk.web3_client.to_evm_address(signer_addr)
                 except Exception:
                     signer_addr = getattr(new_wallet_signer, "address", None)
+                    if signer_addr and is_tron:
+                        signer_addr = self.sdk.web3_client.to_evm_address(signer_addr)
 
-                if not signer_addr or signer_addr.lower() != addr.lower():
+                if not signer_addr or signer_addr.lower() != addr_evm.lower():
                     raise ValueError(
-                        f"new_wallet_signer address ({signer_addr}) does not match new_wallet ({addr})."
+                        f"new_wallet_signer address ({signer_addr}) does not match new_wallet ({addr_evm})."
                     )
 
                 signature = self.sdk.web3_client.sign_typed_data(full_message, new_wallet_signer)  # type: ignore[arg-type]
             else:
                 # Auto-sign only if SDK signer == new wallet
                 current_address = self.sdk.web3_client.account.address if self.sdk.web3_client.account else None
-                if current_address and current_address.lower() == addr.lower():
-                    signature = self.sdk.web3_client.sign_typed_data(full_message, self.sdk.web3_client.account)
+                current_address_evm = None
+                if current_address:
+                    current_address_evm = self.sdk.web3_client.to_evm_address(current_address)
+
+                if current_address_evm and current_address_evm.lower() == addr_evm.lower():
+                    default_signer = self.sdk.web3_client.account
+                    if is_tron and isinstance(self.sdk.signer, str):
+                        default_signer = self.sdk.signer
+                    signature = self.sdk.web3_client.sign_typed_data(full_message, default_signer)  # type: ignore[arg-type]
                 else:
                     raise ValueError(
                         f"New wallet must sign. Provide new_wallet_signer (EOA) or signature (ERC-1271/external). "
-                        f"SDK signer is {current_address}, new_wallet is {addr}."
+                        f"SDK signer is {current_address}, new_wallet is {new_wallet}."
                     )
 
             # Optional: verify recover matches addr for EOA signatures
-            recovered = self.sdk.web3_client.w3.eth.account.recover_message(
-                __import__("eth_account.messages").messages.encode_typed_data(full_message=full_message),
+            from eth_account import Account as _Account
+            from eth_account.messages import encode_typed_data
+
+            recovered = _Account.recover_message(
+                encode_typed_data(full_message=full_message),
                 signature=signature,
             )
-            if recovered.lower() != addr.lower():
-                raise ValueError(f"Signature verification failed: recovered {recovered} but expected {addr}")
+            if recovered.lower() != addr_evm.lower():
+                raise ValueError(f"Signature verification failed: recovered {recovered} but expected {addr_evm}")
         
         # Submit on-chain tx (tx sender is SDK signer: owner/operator)
         try:
@@ -654,7 +687,7 @@ class Agent:
                 self.sdk.identity_registry,
                 "setAgentWallet",
                 agent_id_int,
-                addr,
+                addr_chain,
                 deadline,
                 signature
             )
@@ -662,10 +695,10 @@ class Agent:
             raise ValueError(f"Failed to set agent wallet on-chain: {e}")
 
         def _apply(_receipt: Dict[str, Any]) -> "Agent":
-            self.registration_file.walletAddress = addr
+            self.registration_file.walletAddress = addr_chain
             self.registration_file.walletChainId = chainId
             self.registration_file.updatedAt = int(time.time())
-            self._last_registered_wallet = addr
+            self._last_registered_wallet = addr_chain
             return self
 
         return TransactionHandle(web3_client=self.sdk.web3_client, tx_hash=txHash, compute_result=_apply)

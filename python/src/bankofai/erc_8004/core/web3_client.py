@@ -305,6 +305,73 @@ class Web3Client:
             return "0x" + address[2:].lower()
         return address.lower()
 
+    def to_evm_address(self, address: str) -> str:
+        """Convert address to canonical EVM 20-byte hex form (0x...)."""
+        if not address or not isinstance(address, str):
+            raise ValueError("Address must be a non-empty string")
+
+        if self.chain_type != "tron":
+            if not self.w3.is_address(address):
+                raise ValueError(f"Invalid EVM address: {address}")
+            return self.w3.to_checksum_address(address)
+
+        try:
+            from tronpy.keys import is_base58check_address, to_hex_address
+        except ImportError as exc:
+            raise ImportError("tronpy is required for TRON address conversion") from exc
+
+        raw = address.strip()
+        if raw.startswith("0x") and len(raw) == 42:
+            int(raw[2:], 16)
+            return "0x" + raw[2:].lower()
+
+        cleaned = raw[2:] if raw.startswith("0x") else raw
+        if len(cleaned) == 42 and cleaned[:2].lower() == "41":
+            int(cleaned, 16)
+            return "0x" + cleaned[2:].lower()
+
+        if is_base58check_address(raw):
+            tron_hex = to_hex_address(raw)
+            tron_hex_clean = tron_hex[2:] if tron_hex.startswith("0x") else tron_hex
+            return "0x" + tron_hex_clean[-40:].lower()
+
+        raise ValueError(f"Invalid TRON address: {address}")
+
+    def to_chain_address(self, address: str) -> str:
+        """Convert address to the chain-native form accepted by transact/call paths."""
+        if not address or not isinstance(address, str):
+            raise ValueError("Address must be a non-empty string")
+
+        if self.chain_type != "tron":
+            return self.to_checksum_address(address)
+
+        try:
+            from tronpy.keys import is_base58check_address, to_base58check_address
+        except ImportError as exc:
+            raise ImportError("tronpy is required for TRON address conversion") from exc
+
+        raw = address.strip()
+        if is_base58check_address(raw):
+            return raw
+
+        if raw.startswith("0x") and len(raw) == 42:
+            int(raw[2:], 16)
+            return to_base58check_address("41" + raw[2:])
+
+        cleaned = raw[2:] if raw.startswith("0x") else raw
+        if len(cleaned) == 42 and cleaned[:2].lower() == "41":
+            int(cleaned, 16)
+            return to_base58check_address(cleaned)
+
+        raise ValueError(f"Invalid TRON address: {address}")
+
+    def address_equal(self, a: str, b: str) -> bool:
+        """Compare addresses across chain-specific textual formats."""
+        try:
+            return self.to_evm_address(a).lower() == self.to_evm_address(b).lower()
+        except Exception:
+            return self.normalize_address(a) == self.normalize_address(b)
+
     def is_address(self, address: str) -> bool:
         if self.chain_type == "tron":
             try:
@@ -336,7 +403,6 @@ class Web3Client:
         chain_id: int,
         verifying_contract: str,
     ) -> Dict[str, Any]:
-        self._ensure_evm()
         return {
             "name": name,
             "version": version,
@@ -353,8 +419,6 @@ class Web3Client:
         verifying_contract: str,
         chain_id: int,
     ) -> Dict[str, Any]:
-        self._ensure_evm()
-
         domain = self.encodeEIP712Domain(
             name="ERC8004IdentityRegistry",
             version="1",
@@ -398,12 +462,30 @@ class Web3Client:
         full_message: Dict[str, Any],
         signer: Union[str, Any],
     ) -> bytes:
-        self._ensure_evm()
-
         from eth_account import Account
         from eth_account.messages import encode_typed_data
 
-        acct = Account.from_key(signer) if isinstance(signer, str) else signer
+        if isinstance(signer, str):
+            cleaned = signer[2:] if signer.startswith("0x") else signer
+            acct = Account.from_key(cleaned)
+        elif hasattr(signer, "sign_message"):
+            acct = signer
+        elif hasattr(signer, "private_key"):
+            key_val = getattr(signer, "private_key")
+            if isinstance(key_val, bytes):
+                acct = Account.from_key(key_val)
+            else:
+                key_str = str(key_val)
+                key_str = key_str[2:] if key_str.startswith("0x") else key_str
+                acct = Account.from_key(key_str)
+        elif hasattr(signer, "key"):
+            key_obj = getattr(signer, "key")
+            key_hex = key_obj.hex() if hasattr(key_obj, "hex") else str(key_obj)
+            key_hex = key_hex[2:] if key_hex.startswith("0x") else key_hex
+            acct = Account.from_key(key_hex)
+        else:
+            raise ValueError("Unsupported signer type for typed-data signing")
+
         encoded = encode_typed_data(full_message=full_message)
         signed = acct.sign_message(encoded)
         return signed.signature

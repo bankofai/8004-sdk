@@ -1,6 +1,6 @@
 # Samples
 
-Run from project root after editable install:
+Run from the `python/` directory after editable install:
 
 ```bash
 pip install -e .

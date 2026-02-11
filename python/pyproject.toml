@@ -8,9 +8,12 @@ version = "1.0.0"
 description = "Multi-chain ERC/TRC-8004 SDK for agent registration and reputation"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
+license = { file = "LICENSE" }
 authors = [
   { name = "BankOfAI" }
+]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
   "aiohttp>=3.9.0",

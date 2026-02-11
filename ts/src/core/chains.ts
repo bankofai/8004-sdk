@@ -5,6 +5,7 @@ import {
   http,
   parseAbiItem,
   toBytes,
+  toHex,
   type Abi,
   type Hex,
   type PublicClient,
@@ -40,8 +41,13 @@ export interface ChainAdapter {
   readonly signerAddress?: string;
 
   registerAgent(identityRegistry: string, abi: Abi, agentURI: string): Promise<string>;
+  getAgentURI(identityRegistry: string, abi: Abi, agentId: bigint): Promise<string>;
   getAgentWallet(identityRegistry: string, abi: Abi, agentId: bigint): Promise<string>;
   ownerOf(identityRegistry: string, abi: Abi, agentId: bigint): Promise<string>;
+  setAgentURI(identityRegistry: string, abi: Abi, agentId: bigint, agentURI: string): Promise<string>;
+  setApprovalForAll(identityRegistry: string, abi: Abi, operator: string, approved: boolean): Promise<string>;
+  transferFrom(identityRegistry: string, abi: Abi, from: string, to: string, agentId: bigint): Promise<string>;
+  setMetadata(identityRegistry: string, abi: Abi, agentId: bigint, key: string, value: Uint8Array): Promise<string>;
   setAgentWallet(
     identityRegistry: string,
     abi: Abi,
@@ -89,6 +95,21 @@ export interface ChainAdapter {
     agentId: bigint,
     clientAddress: string,
   ): Promise<bigint>;
+  appendResponse(
+    reputationRegistry: string,
+    abi: Abi,
+    agentId: bigint,
+    clientAddress: string,
+    feedbackIndex: bigint,
+    responseURI: string,
+    responseHash: Hex,
+  ): Promise<string>;
+  revokeFeedback(
+    reputationRegistry: string,
+    abi: Abi,
+    agentId: bigint,
+    feedbackIndex: bigint,
+  ): Promise<string>;
   validationRequest(
     validationRegistry: string,
     abi: Abi,
@@ -153,6 +174,15 @@ export class EvmAdapter implements ChainAdapter {
     return hash;
   }
 
+  async getAgentURI(identityRegistry: string, abi: Abi, agentId: bigint): Promise<string> {
+    return await this.publicClient.readContract({
+      address: identityRegistry as Hex,
+      abi,
+      functionName: "tokenURI",
+      args: [agentId],
+    }) as string;
+  }
+
   async getAgentWallet(identityRegistry: string, abi: Abi, agentId: bigint): Promise<string> {
     return await this.publicClient.readContract({
       address: identityRegistry as Hex,
@@ -169,6 +199,54 @@ export class EvmAdapter implements ChainAdapter {
       functionName: "ownerOf",
       args: [agentId],
     }) as string;
+  }
+
+  async setAgentURI(identityRegistry: string, abi: Abi, agentId: bigint, agentURI: string): Promise<string> {
+    if (!this.walletClient || !this.signerAddress) throw new Error("Signer is required for write operations");
+    return await (this.walletClient.writeContract as any)({
+      address: identityRegistry as Hex,
+      abi,
+      functionName: "setAgentURI",
+      args: [agentId, agentURI],
+      account: this.walletClient.account,
+      chain: this.walletClient.chain,
+    });
+  }
+
+  async setApprovalForAll(identityRegistry: string, abi: Abi, operator: string, approved: boolean): Promise<string> {
+    if (!this.walletClient || !this.signerAddress) throw new Error("Signer is required for write operations");
+    return await (this.walletClient.writeContract as any)({
+      address: identityRegistry as Hex,
+      abi,
+      functionName: "setApprovalForAll",
+      args: [this.toChainAddress(operator), approved],
+      account: this.walletClient.account,
+      chain: this.walletClient.chain,
+    });
+  }
+
+  async transferFrom(identityRegistry: string, abi: Abi, from: string, to: string, agentId: bigint): Promise<string> {
+    if (!this.walletClient || !this.signerAddress) throw new Error("Signer is required for write operations");
+    return await (this.walletClient.writeContract as any)({
+      address: identityRegistry as Hex,
+      abi,
+      functionName: "transferFrom",
+      args: [this.toChainAddress(from), this.toChainAddress(to), agentId],
+      account: this.walletClient.account,
+      chain: this.walletClient.chain,
+    });
+  }
+
+  async setMetadata(identityRegistry: string, abi: Abi, agentId: bigint, key: string, value: Uint8Array): Promise<string> {
+    if (!this.walletClient || !this.signerAddress) throw new Error("Signer is required for write operations");
+    return await (this.walletClient.writeContract as any)({
+      address: identityRegistry as Hex,
+      abi,
+      functionName: "setMetadata",
+      args: [agentId, key, toHex(value)],
+      account: this.walletClient.account,
+      chain: this.walletClient.chain,
+    });
   }
 
   async setAgentWallet(
@@ -283,6 +361,43 @@ export class EvmAdapter implements ChainAdapter {
       functionName: "getLastIndex",
       args: [agentId, this.toChainAddress(clientAddress)],
     }) as bigint;
+  }
+
+  async appendResponse(
+    reputationRegistry: string,
+    abi: Abi,
+    agentId: bigint,
+    clientAddress: string,
+    feedbackIndex: bigint,
+    responseURI: string,
+    responseHash: Hex,
+  ): Promise<string> {
+    if (!this.walletClient || !this.signerAddress) throw new Error("Signer is required for write operations");
+    return await (this.walletClient.writeContract as any)({
+      address: reputationRegistry as Hex,
+      abi,
+      functionName: "appendResponse",
+      args: [agentId, this.toChainAddress(clientAddress), feedbackIndex, responseURI, responseHash],
+      account: this.walletClient.account,
+      chain: this.walletClient.chain,
+    });
+  }
+
+  async revokeFeedback(
+    reputationRegistry: string,
+    abi: Abi,
+    agentId: bigint,
+    feedbackIndex: bigint,
+  ): Promise<string> {
+    if (!this.walletClient || !this.signerAddress) throw new Error("Signer is required for write operations");
+    return await (this.walletClient.writeContract as any)({
+      address: reputationRegistry as Hex,
+      abi,
+      functionName: "revokeFeedback",
+      args: [agentId, feedbackIndex],
+      account: this.walletClient.account,
+      chain: this.walletClient.chain,
+    });
   }
 
   async validationRequest(
@@ -475,6 +590,13 @@ export class TronAdapter implements ChainAdapter {
     return txid;
   }
 
+  async getAgentURI(identityRegistry: string, abi: Abi, agentId: bigint): Promise<string> {
+    const contract = await this.tronWeb.contract(abi as any, identityRegistry);
+    const method = this.pickMethod(contract, abi, "tokenURI", 1);
+    const out = await method(Number(agentId)).call({ from: this.readCaller });
+    return String(out || "");
+  }
+
   async getAgentWallet(identityRegistry: string, abi: Abi, agentId: bigint): Promise<string> {
     const contract = await this.tronWeb.contract(abi as any, identityRegistry);
     const method = this.pickMethod(contract, abi, "getAgentWallet", 1);
@@ -487,6 +609,38 @@ export class TronAdapter implements ChainAdapter {
     const method = this.pickMethod(contract, abi, "ownerOf", 1);
     const out = await method(Number(agentId)).call({ from: this.readCaller });
     return String(out);
+  }
+
+  async setAgentURI(identityRegistry: string, abi: Abi, agentId: bigint, agentURI: string): Promise<string> {
+    if (!this.signerAddress) throw new Error("Signer is required for write operations");
+    const contract = await this.tronWeb.contract(abi as any, identityRegistry);
+    const method = this.pickMethod(contract, abi, "setAgentURI", 2);
+    return await method(Number(agentId), agentURI).send({ feeLimit: this.feeLimit });
+  }
+
+  async setApprovalForAll(identityRegistry: string, abi: Abi, operator: string, approved: boolean): Promise<string> {
+    if (!this.signerAddress) throw new Error("Signer is required for write operations");
+    const contract = await this.tronWeb.contract(abi as any, identityRegistry);
+    const method = this.pickMethod(contract, abi, "setApprovalForAll", 2);
+    return await method(this.toChainAddress(operator), approved).send({ feeLimit: this.feeLimit });
+  }
+
+  async transferFrom(identityRegistry: string, abi: Abi, from: string, to: string, agentId: bigint): Promise<string> {
+    if (!this.signerAddress) throw new Error("Signer is required for write operations");
+    const contract = await this.tronWeb.contract(abi as any, identityRegistry);
+    const method = this.pickMethod(contract, abi, "transferFrom", 3);
+    return await method(
+      this.toChainAddress(from),
+      this.toChainAddress(to),
+      Number(agentId),
+    ).send({ feeLimit: this.feeLimit });
+  }
+
+  async setMetadata(identityRegistry: string, abi: Abi, agentId: bigint, key: string, value: Uint8Array): Promise<string> {
+    if (!this.signerAddress) throw new Error("Signer is required for write operations");
+    const contract = await this.tronWeb.contract(abi as any, identityRegistry);
+    const method = this.pickMethod(contract, abi, "setMetadata", 3);
+    return await method(Number(agentId), key, value).send({ feeLimit: this.feeLimit });
   }
 
   async setAgentWallet(
@@ -611,6 +765,39 @@ export class TronAdapter implements ChainAdapter {
       this.toChainAddress(clientAddress),
     ).call({ from: this.readCaller });
     return BigInt(out);
+  }
+
+  async appendResponse(
+    reputationRegistry: string,
+    abi: Abi,
+    agentId: bigint,
+    clientAddress: string,
+    feedbackIndex: bigint,
+    responseURI: string,
+    responseHash: Hex,
+  ): Promise<string> {
+    if (!this.signerAddress) throw new Error("Signer is required for write operations");
+    const contract = await this.tronWeb.contract(abi as any, reputationRegistry);
+    const method = this.pickMethod(contract, abi, "appendResponse", 5);
+    return await method(
+      Number(agentId),
+      this.toChainAddress(clientAddress),
+      Number(feedbackIndex),
+      responseURI,
+      responseHash,
+    ).send({ feeLimit: this.feeLimit });
+  }
+
+  async revokeFeedback(
+    reputationRegistry: string,
+    abi: Abi,
+    agentId: bigint,
+    feedbackIndex: bigint,
+  ): Promise<string> {
+    if (!this.signerAddress) throw new Error("Signer is required for write operations");
+    const contract = await this.tronWeb.contract(abi as any, reputationRegistry);
+    const method = this.pickMethod(contract, abi, "revokeFeedback", 2);
+    return await method(Number(agentId), Number(feedbackIndex)).send({ feeLimit: this.feeLimit });
   }
 
   async validationRequest(

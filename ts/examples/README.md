@@ -5,6 +5,7 @@ Runnable TypeScript examples for 8004 flows:
 - Wallet management (`setWallet` / `unsetWallet`)
 - Reputation feedback
 - Validation request/response
+- Agent lifecycle updates (`loadAgent`, `updateRegistration`, transfer/operator APIs)
 
 ## 1. Prerequisites
 
@@ -64,8 +65,8 @@ const agent = sdk.createAgent({
 
 agent.setMCP("https://mcp.example.com/");
 agent.setA2A("https://a2a.example.com/.well-known/agent-card.json");
-agent.addSkill("data_engineering/data_transformation_pipeline", { validateOasf: true });
-agent.addDomain("technology/data_science/data_science", { validateOasf: true });
+agent.addSkill("data_engineering/data_transformation_pipeline");
+agent.addDomain("technology/data_science/data_science");
 agent.setTrust({ reputation: true, cryptoEconomic: true });
 agent.setMetadata({ version: "1.0.0", category: "sample" });
 agent.setActive(true);
@@ -87,7 +88,31 @@ Field purpose:
 - `setX402Support(true)`: x402 capability flag
 - `register(uri)`: submit final registration URI to chain
 
-## 4. Quick Run
+## 4.1 Extra High-Level APIs
+
+```ts
+// load and update
+const loaded = await sdk.loadAgent("97:123");
+loaded.updateInfo({ description: "updated" });
+loaded.setENS("myagent.eth");
+await loaded.updateRegistration("https://example.com/agent-card-updated.json");
+
+// feedback moderation
+await sdk.appendResponse({
+  agentId: "97:123",
+  clientAddress: "0x....",
+  feedbackIndex: 1,
+  responseURI: "ipfs://QmResponse",
+});
+await sdk.revokeFeedback("97:123", 1);
+
+// transfer/operator
+await loaded.addOperator("0x....");
+await loaded.removeOperator("0x....");
+await loaded.transfer("0xNewOwner....");
+```
+
+## 5. Quick Run
 
 ```bash
 npx tsx examples/register-bsc.ts
@@ -97,7 +122,7 @@ npx tsx examples/reputation-smoke.ts
 npx tsx examples/validation-smoke.ts
 ```
 
-## 5. Reputation Notes
+## 6. Reputation Notes
 
 Contracts reject self-feedback.
 
@@ -106,13 +131,13 @@ If you see:
 
 Use a different reviewer wallet and pass `reviewerSigner`.
 
-## 6. Validation Notes
+## 7. Validation Notes
 
 - `validationRequest` needs a unique `requestHash`
 - Duplicate hash can fail with `exists`
 - Current samples generate unique values to avoid collisions
 
-## 7. Common Errors
+## 8. Common Errors
 
 - TRON `REVERT`
   - Check network and RPC match (`nile/mainnet/shasta`)

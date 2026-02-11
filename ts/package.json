@@ -1,6 +1,6 @@
 {
   "name": "@bankofai/8004-sdk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "TypeScript SDK for 8004. Supports agent registration, reputation, and validation flows.",
   "type": "module",
   "main": "dist/index.js",

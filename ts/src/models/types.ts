@@ -8,6 +8,7 @@ export interface SDKConfig {
   feeLimit?: number;
   subgraphUrl?: string;
   subgraphOverrides?: Record<number, string>;
+  ipfsUploader?: (json: string) => Promise<string>;
 }
 
 export interface RegistrationResult {
@@ -73,6 +74,50 @@ export interface ValidationStatus {
   responseHash: `0x${string}`;
   tag: string;
   lastUpdate: number;
+}
+
+export interface AppendResponseParams {
+  agentId: string | number;
+  clientAddress: string;
+  feedbackIndex: number;
+  responseURI: string;
+  responseHash?: `0x${string}`;
+}
+
+export interface FeedbackSummary {
+  id: string;
+  agentId: string;
+  reviewer: string;
+  feedbackIndex: number;
+  value: number;
+  valueDecimals?: number;
+  tag1?: string;
+  tag2?: string;
+  endpoint?: string;
+  isRevoked?: boolean;
+  createdAt?: number;
+}
+
+export interface FeedbackSearchFilters {
+  agentId?: string;
+  agents?: string[];
+  reviewers?: string[];
+  tags?: string[];
+  capabilities?: string[];
+  skills?: string[];
+  tasks?: string[];
+  names?: string[];
+  minValue?: number;
+  maxValue?: number;
+  includeRevoked?: boolean;
+  keyword?: string;
+}
+
+export interface FeedbackSearchOptions {
+  first?: number;
+  skip?: number;
+  orderBy?: "createdAt" | "updatedAt";
+  orderDirection?: "asc" | "desc";
 }
 
 export interface TxWaitOptions {

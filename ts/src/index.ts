@@ -6,6 +6,8 @@ export { AgentIndexer } from "./core/indexer.js";
 
 export type {
   AgentSummary,
+  FeedbackSearchFilters,
+  FeedbackSearchOptions,
   SearchFilters,
   SearchOptions,
   SDKConfig,
@@ -14,10 +16,12 @@ export type {
   SetWalletOptions,
   GiveFeedbackParams,
   FeedbackRecord,
+  FeedbackSummary,
   ReputationSummary,
   ValidationRequestParams,
   ValidationResponseParams,
   ValidationStatus,
+  AppendResponseParams,
   TxMined,
   TxWaitOptions,
 } from "./models/types.js";

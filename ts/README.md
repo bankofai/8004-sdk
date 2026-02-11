@@ -10,10 +10,14 @@ BankOfAI 8004 SDK enables you to:
 
 - Create and manage on-chain agent identities
 - Register agent card URIs on-chain (`agent.register()`)
+- Register via IPFS uploader hook (`agent.registerIPFS()`)
 - Configure MCP/A2A endpoints, skills/domains, trust flags, metadata, and status
+- Manage ENS/profile update and endpoint cleanup (`setENS()`, `updateInfo()`, `removeEndpoint()`)
 - Manage verified wallet binding (`agent.getWallet()`, `agent.setWallet()`, `agent.unsetWallet()`)
-- Submit and read feedback (`giveFeedback()`, `getFeedback()`, `getReputationSummary()`)
+- Submit/read/manage feedback (`giveFeedback()`, `getFeedback()`, `searchFeedback()`, `appendResponse()`, `revokeFeedback()`, `getReputationSummary()`)
 - Run validation request/response flows (`validationRequest()`, `validationResponse()`, `getValidationStatus()`)
+- Load and update registered agents (`loadAgent()`, `updateRegistration()`, `setAgentUri()`)
+- Transfer and operator management (`transfer()`, `addOperator()`, `removeOperator()`)
 
 Package import:
 
@@ -67,6 +71,24 @@ const mined = await tx.waitConfirmed({ timeoutMs: 180_000 });
 console.log(mined.result.agentId, mined.result.agentURI);
 ```
 
+IPFS upload flow (optional):
+
+```ts
+const sdk = new SDK({
+  network: "eip155:97",
+  rpcUrl: "<RPC_URL>",
+  signer: "<PRIVATE_KEY>",
+  ipfsUploader: async (json) => {
+    // Upload JSON to your pinning/storage service and return ipfs://... URI
+    return "ipfs://QmExample";
+  },
+});
+
+const agent = sdk.createAgent({ name: "IPFS Agent", description: "IPFS flow" });
+const tx = await agent.registerIPFS();
+await tx.waitConfirmed({ timeoutMs: 180_000 });
+```
+
 ## Core Flows
 
 ### Wallet Management
@@ -82,8 +104,24 @@ if (setTx) await setTx.waitConfirmed({ timeoutMs: 180_000 });
 ```ts
 const fbTx = await sdk.giveFeedback({ agentId: "<AGENT_ID>", value: 88 });
 const fb = await fbTx.waitConfirmed({ timeoutMs: 180_000 });
+await sdk.appendResponse({
+  agentId: "<AGENT_ID>",
+  clientAddress: fb.result.reviewer,
+  feedbackIndex: fb.result.feedbackIndex,
+  responseURI: "ipfs://QmResponse",
+});
 const summary = await sdk.getReputationSummary("<AGENT_ID>");
+const list = await sdk.searchFeedback({ agents: ["<AGENT_ID>"] });
 console.log(fb.result, summary);
+```
+
+### Agent Lifecycle
+
+```ts
+const loaded = await sdk.loadAgent("<CHAIN_ID>:<TOKEN_ID>");
+loaded.updateInfo({ description: "updated description" });
+loaded.setENS("myagent.eth");
+await loaded.updateRegistration("https://example.com/agent-card-updated.json");
 ```
 
 ### Validation
@@ -106,6 +144,7 @@ await respTx.waitConfirmed({ timeoutMs: 180_000 });
 ## Search and Indexing
 
 - `searchAgents()` / `getAgent()` APIs exist in the SDK.
+- `searchFeedback()` is available when subgraph is configured.
 - Current release does **not** enable subgraph URL integration by default.
 - Full subgraph-backed search support is planned in a future update.
 

@@ -24,6 +24,38 @@ export class Agent {
     return this.touch();
   }
 
+  setENS(name: string, version = "1.0"): this {
+    this.registrationFile.endpoints = this.registrationFile.endpoints.filter((e) => e.name !== "ENS");
+    this.registrationFile.endpoints.push({ name: "ENS", endpoint: name, version });
+    return this.touch();
+  }
+
+  removeEndpoint(): this;
+  removeEndpoint(opts: { type?: string; value?: string }): this;
+  removeEndpoint(type?: string, value?: string): this;
+  removeEndpoint(arg1?: string | { type?: string; value?: string }, arg2?: string): this {
+    const { type, value } =
+      arg1 && typeof arg1 === "object"
+        ? { type: arg1.type, value: arg1.value }
+        : { type: arg1 as string | undefined, value: arg2 };
+
+    if (type === undefined && value === undefined) {
+      this.registrationFile.endpoints = [];
+      return this.touch();
+    }
+
+    this.registrationFile.endpoints = this.registrationFile.endpoints.filter((ep) => {
+      const typeMatch = type === undefined || ep.name === type;
+      const valueMatch = value === undefined || ep.endpoint === value;
+      return !(typeMatch && valueMatch);
+    });
+    return this.touch();
+  }
+
+  removeEndpoints(): this {
+    return this.removeEndpoint();
+  }
+
   addSkill(skill: string): this {
     if (!this.registrationFile.tags.includes(skill)) this.registrationFile.tags.push(skill);
     return this.touch();
@@ -31,6 +63,23 @@ export class Agent {
 
   addDomain(domain: string): this {
     if (!this.registrationFile.tags.includes(domain)) this.registrationFile.tags.push(domain);
+    return this.touch();
+  }
+
+  removeSkill(skill: string): this {
+    this.registrationFile.tags = this.registrationFile.tags.filter((x) => x !== skill);
+    return this.touch();
+  }
+
+  removeDomain(domain: string): this {
+    this.registrationFile.tags = this.registrationFile.tags.filter((x) => x !== domain);
+    return this.touch();
+  }
+
+  updateInfo(input: { name?: string; description?: string; image?: string }): this {
+    if (typeof input.name === "string") this.registrationFile.name = input.name;
+    if (typeof input.description === "string") this.registrationFile.description = input.description;
+    if (typeof input.image === "string") this.registrationFile.image = input.image;
     return this.touch();
   }
 
@@ -43,9 +92,61 @@ export class Agent {
     return this.touch();
   }
 
+  setTrustModels(models: Array<{ name: string } | string>): this {
+    const trust: string[] = [];
+    for (const model of models) {
+      const raw = typeof model === "string" ? model : model.name;
+      const x = String(raw || "").toLowerCase();
+      if (x.includes("reputation")) {
+        if (!trust.includes("reputation")) trust.push("reputation");
+      } else if (x.includes("crypto")) {
+        if (!trust.includes("crypto-economic")) trust.push("crypto-economic");
+      } else if (x.includes("tee")) {
+        if (!trust.includes("tee-attestation")) trust.push("tee-attestation");
+      } else if (x.trim()) {
+        if (!trust.includes(x.trim())) trust.push(x.trim());
+      }
+    }
+    this.registrationFile.supportedTrust = trust;
+    return this.touch();
+  }
+
   setMetadata(kv: Record<string, unknown>): this {
     this.registrationFile.metadata = { ...this.registrationFile.metadata, ...kv };
     return this.touch();
+  }
+
+  async updateOnChainMetadata(): Promise<string[]> {
+    if (!this.registrationFile.agentId) throw new Error("Agent must be registered first");
+    const agentTokenId = BigInt(this.registrationFile.agentId.split(":").pop() as string);
+    const txHashes: string[] = [];
+    const encoder = new TextEncoder();
+
+    for (const [k, v] of Object.entries(this.registrationFile.metadata || {})) {
+      const payload = typeof v === "string" ? v : JSON.stringify(v);
+      const txHash = await this.sdk.chain.setMetadata(
+        this.sdk.identityRegistry,
+        this.sdk.identityRegistryAbi,
+        agentTokenId,
+        k,
+        encoder.encode(payload),
+      );
+      txHashes.push(txHash);
+    }
+
+    const ens = this.registrationFile.endpoints.find((e) => e.name === "ENS")?.endpoint;
+    if (ens && ens.trim()) {
+      const txHash = await this.sdk.chain.setMetadata(
+        this.sdk.identityRegistry,
+        this.sdk.identityRegistryAbi,
+        agentTokenId,
+        "agentName",
+        encoder.encode(ens.trim()),
+      );
+      txHashes.push(txHash);
+    }
+
+    return txHashes;
   }
 
   setActive(active: boolean): this {
@@ -71,6 +172,38 @@ export class Agent {
       this.registrationFile.agentId = resolved.agentId;
       this.touch();
       return resolved;
+    });
+  }
+
+  async registerIPFS(): Promise<TransactionHandle<RegistrationResult>> {
+    const uri = await this.sdk.uploadRegistrationFile(this.toJSON());
+    return await this.register(uri);
+  }
+
+  setAgentUri(uri: string): this {
+    this.registrationFile.agentURI = uri;
+    return this.touch();
+  }
+
+  async updateRegistration(agentURI?: string): Promise<TransactionHandle<Agent> | Agent> {
+    if (!this.registrationFile.agentId) {
+      throw new Error("Agent must be registered before updating");
+    }
+    if (agentURI === undefined) {
+      return this;
+    }
+
+    const agentTokenId = BigInt(this.registrationFile.agentId.split(":").pop() as string);
+    const txHash = await this.sdk.chain.setAgentURI(
+      this.sdk.identityRegistry,
+      this.sdk.identityRegistryAbi,
+      agentTokenId,
+      agentURI,
+    );
+    return new TransactionHandle<Agent>(txHash, this.sdk.chain, async () => {
+      this.registrationFile.agentURI = agentURI;
+      this.touch();
+      return this;
     });
   }
 
@@ -192,6 +325,58 @@ export class Agent {
       this.touch();
       return this;
     });
+  }
+
+  async transfer(newOwnerAddress: string, approveOperator = false): Promise<TransactionHandle<Agent>> {
+    if (!this.registrationFile.agentId) throw new Error("Agent must be registered first");
+    const agentTokenId = BigInt(this.registrationFile.agentId.split(":").pop() as string);
+    const currentOwner = await this.sdk.chain.ownerOf(this.sdk.identityRegistry, this.sdk.identityRegistryAbi, agentTokenId);
+
+    if (approveOperator) {
+      await this.sdk.chain.setApprovalForAll(
+        this.sdk.identityRegistry,
+        this.sdk.identityRegistryAbi,
+        this.sdk.chain.toChainAddress(newOwnerAddress),
+        true,
+      );
+    }
+
+    const txHash = await this.sdk.chain.transferFrom(
+      this.sdk.identityRegistry,
+      this.sdk.identityRegistryAbi,
+      currentOwner,
+      this.sdk.chain.toChainAddress(newOwnerAddress),
+      agentTokenId,
+    );
+
+    return new TransactionHandle<Agent>(txHash, this.sdk.chain, async () => {
+      this.registrationFile.walletAddress = undefined;
+      this.registrationFile.walletChainId = undefined;
+      this.touch();
+      return this;
+    });
+  }
+
+  async addOperator(operator: string): Promise<TransactionHandle<Agent>> {
+    if (!this.registrationFile.agentId) throw new Error("Agent must be registered first");
+    const txHash = await this.sdk.chain.setApprovalForAll(
+      this.sdk.identityRegistry,
+      this.sdk.identityRegistryAbi,
+      this.sdk.chain.toChainAddress(operator),
+      true,
+    );
+    return new TransactionHandle<Agent>(txHash, this.sdk.chain, async () => this);
+  }
+
+  async removeOperator(operator: string): Promise<TransactionHandle<Agent>> {
+    if (!this.registrationFile.agentId) throw new Error("Agent must be registered first");
+    const txHash = await this.sdk.chain.setApprovalForAll(
+      this.sdk.identityRegistry,
+      this.sdk.identityRegistryAbi,
+      this.sdk.chain.toChainAddress(operator),
+      false,
+    );
+    return new TransactionHandle<Agent>(txHash, this.sdk.chain, async () => this);
   }
 
   toJSON(): RegistrationFile {

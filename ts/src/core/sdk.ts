@@ -8,8 +8,12 @@ import { getIdentityRegistryAbi, getReputationRegistryAbi, getValidationRegistry
 import { SubgraphClient } from "./subgraph-client.js";
 import { AgentIndexer } from "./indexer.js";
 import type {
+  AppendResponseParams,
   AgentSummary,
+  FeedbackSearchFilters,
+  FeedbackSearchOptions,
   FeedbackRecord,
+  FeedbackSummary,
   GiveFeedbackParams,
   RegistrationFile,
   RegistrationResult,
@@ -41,6 +45,7 @@ export class SDK {
   readonly chain: ChainAdapter;
   readonly indexer: AgentIndexer;
   readonly subgraphClients: Map<number, SubgraphClient>;
+  readonly ipfsUploader?: (json: string) => Promise<string>;
 
   private static readonly TRON_EIP712_CHAIN_IDS: Record<string, number> = {
     mainnet: 728126428,
@@ -82,6 +87,7 @@ export class SDK {
     this.chain = this.chainType === "evm"
       ? new EvmAdapter(this.rpcUrl, this.chainId, this.signer)
       : new TronAdapter(this.rpcUrl, this.signer, this.feeLimit);
+    this.ipfsUploader = config.ipfsUploader;
 
     this.subgraphClients = new Map<number, SubgraphClient>();
     const mergedSubgraph = {
@@ -111,6 +117,101 @@ export class SDK {
     };
 
     return new Agent(this, registrationFile);
+  }
+
+  async loadAgent(agentIdInput: string | number): Promise<Agent> {
+    const tokenId = this.parseAgentTokenId(agentIdInput);
+    const agentId = this.normalizeAgentId(agentIdInput);
+    const now = Math.floor(Date.now() / 1000);
+
+    let summary: AgentSummary | undefined;
+    try {
+      summary = await this.getAgent(agentId);
+    } catch {
+      // ignore subgraph/indexer errors; we still try to hydrate from chain.
+    }
+
+    let agentURI = summary?.agentURI;
+    if (!agentURI || !String(agentURI).trim()) {
+      try {
+        const uri = await this.chain.getAgentURI(this.identityRegistry, this.identityRegistryAbi, tokenId);
+        if (uri && String(uri).trim()) agentURI = String(uri);
+      } catch {
+        // keep empty if unavailable
+      }
+    }
+
+    const registrationFile: RegistrationFile = {
+      agentId,
+      agentURI,
+      name: summary?.name ?? "",
+      description: summary?.description ?? "",
+      image: summary?.image,
+      endpoints: [],
+      tags: [],
+      metadata: {},
+      supportedTrust: [],
+      active: summary?.active ?? true,
+      x402support: summary?.x402support ?? false,
+      updatedAt: summary?.updatedAt ?? now,
+    };
+
+    if (agentURI && String(agentURI).trim()) {
+      const hydrated = await this.fetchRegistrationFromUri(agentURI);
+      if (hydrated) {
+        registrationFile.name = hydrated.name ?? registrationFile.name;
+        registrationFile.description = hydrated.description ?? registrationFile.description;
+        registrationFile.image = hydrated.image ?? registrationFile.image;
+        registrationFile.endpoints = hydrated.endpoints ?? registrationFile.endpoints;
+        registrationFile.tags = hydrated.tags ?? registrationFile.tags;
+        registrationFile.metadata = hydrated.metadata ?? registrationFile.metadata;
+        registrationFile.supportedTrust = hydrated.supportedTrust ?? registrationFile.supportedTrust;
+        registrationFile.active = hydrated.active ?? registrationFile.active;
+        registrationFile.x402support = hydrated.x402support ?? registrationFile.x402support;
+      }
+    }
+
+    return new Agent(this, registrationFile);
+  }
+
+  private async fetchRegistrationFromUri(uri: string): Promise<Partial<RegistrationFile> | undefined> {
+    const u = String(uri || "").trim();
+    if (!u) return undefined;
+
+    let target = u;
+    if (u.startsWith("ipfs://")) {
+      const cid = u.slice("ipfs://".length).replace(/^ipfs\//, "");
+      target = `https://ipfs.io/ipfs/${cid}`;
+    } else if (!u.startsWith("http://") && !u.startsWith("https://")) {
+      return undefined;
+    }
+
+    try {
+      const res = await fetch(target, { method: "GET" });
+      if (!res.ok) return undefined;
+      const json = await res.json();
+      const rf = json as Partial<RegistrationFile>;
+      return {
+        name: typeof rf.name === "string" ? rf.name : undefined,
+        description: typeof rf.description === "string" ? rf.description : undefined,
+        image: typeof rf.image === "string" ? rf.image : undefined,
+        endpoints: Array.isArray(rf.endpoints) ? rf.endpoints : undefined,
+        tags: Array.isArray(rf.tags) ? rf.tags : undefined,
+        metadata: typeof rf.metadata === "object" && rf.metadata ? rf.metadata : undefined,
+        supportedTrust: Array.isArray(rf.supportedTrust) ? rf.supportedTrust : undefined,
+        active: typeof rf.active === "boolean" ? rf.active : undefined,
+        x402support: typeof rf.x402support === "boolean" ? rf.x402support : undefined,
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  async uploadRegistrationFile(registrationFile: RegistrationFile): Promise<string> {
+    if (!this.ipfsUploader) {
+      throw new Error("No ipfsUploader configured. Pass SDKConfig.ipfsUploader to use registerIPFS().");
+    }
+    return await this.ipfsUploader(JSON.stringify(registrationFile, null, 2));
   }
 
   async submitRegister(agentURI: string): Promise<TransactionHandle<RegistrationResult>> {
@@ -275,6 +376,43 @@ export class SDK {
     };
   }
 
+  async appendResponse(
+    params: AppendResponseParams,
+  ): Promise<TransactionHandle<{ agentId: string; clientAddress: string; feedbackIndex: number }>> {
+    const tokenId = this.parseAgentTokenId(params.agentId);
+    const agentId = this.normalizeAgentId(params.agentId);
+    const responseHash = this.toBytes32(params.responseHash, params.responseURI);
+    const txHash = await this.chain.appendResponse(
+      this.reputationRegistry,
+      this.reputationRegistryAbi,
+      tokenId,
+      params.clientAddress,
+      BigInt(params.feedbackIndex),
+      params.responseURI,
+      responseHash,
+    );
+    return new TransactionHandle(txHash, this.chain, async () => ({
+      agentId,
+      clientAddress: this.chain.toChainAddress(params.clientAddress),
+      feedbackIndex: params.feedbackIndex,
+    }));
+  }
+
+  async revokeFeedback(
+    agentIdInput: string | number,
+    feedbackIndex: number,
+  ): Promise<TransactionHandle<{ agentId: string; feedbackIndex: number }>> {
+    const tokenId = this.parseAgentTokenId(agentIdInput);
+    const agentId = this.normalizeAgentId(agentIdInput);
+    const txHash = await this.chain.revokeFeedback(
+      this.reputationRegistry,
+      this.reputationRegistryAbi,
+      tokenId,
+      BigInt(feedbackIndex),
+    );
+    return new TransactionHandle(txHash, this.chain, async () => ({ agentId, feedbackIndex }));
+  }
+
   async validationRequest(params: ValidationRequestParams): Promise<TransactionHandle<{ requestHash: Hex; agentId: string }>> {
     const tokenId = this.parseAgentTokenId(params.agentId);
     const agentId = this.normalizeAgentId(params.agentId);
@@ -337,5 +475,16 @@ export class SDK {
 
   async getAgent(agentId: string): Promise<AgentSummary | undefined> {
     return this.indexer.getAgent(agentId);
+  }
+
+  async searchFeedback(
+    filters: FeedbackSearchFilters = {},
+    options: FeedbackSearchOptions = {},
+    chainId?: number,
+  ): Promise<FeedbackSummary[]> {
+    const cid = chainId ?? this.chainId;
+    const client = this.getSubgraphClient(cid);
+    if (!client) return [];
+    return client.searchFeedback(cid, filters, options);
   }
 }

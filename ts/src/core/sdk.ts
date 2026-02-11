@@ -54,11 +54,20 @@ export class SDK {
 
   constructor(config: SDKConfig) {
     const resolved = resolveChainFromConfig(chainsJson, config.network, config.chainId, config.rpcUrl);
+    if (
+      typeof config.chainId === "number" &&
+      typeof resolved.resolvedChainId === "number" &&
+      config.chainId !== resolved.resolvedChainId
+    ) {
+      throw new Error(
+        `chainId/network mismatch: chainId=${config.chainId}, network=${config.network} -> ${resolved.resolvedChainId}`,
+      );
+    }
 
     this.chainType = resolved.chainType;
     this.network = resolved.resolvedNetwork;
     this.rpcUrl = resolved.rpcUrl;
-    this.chainId = config.chainId ?? (this.chainType === "evm" ? 97 : 1);
+    this.chainId = resolved.resolvedChainId ?? config.chainId ?? (this.chainType === "evm" ? 97 : 1);
     this.signer = config.signer;
     this.feeLimit = config.feeLimit ?? 120_000_000;
 

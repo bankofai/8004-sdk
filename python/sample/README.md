@@ -17,6 +17,10 @@ Required:
 - Funded private key(s) for target testnet
 - BSC RPC (for BSC samples) or TRON Nile RPC (for TRON samples)
 
+BSC CAIP-2 IDs used in samples:
+- `eip155:56` (mainnet)
+- `eip155:97` (testnet)
+
 Important:
 - Samples use local constants in each script.
 - `.env` is not required for these sample scripts.
@@ -45,9 +49,8 @@ import time
 from bankofai.sdk_8004.core.sdk import SDK
 
 sdk = SDK(
-    chainId=97,
     rpcUrl="https://data-seed-prebsc-1-s1.binance.org:8545",
-    network="evm:bsc",
+    network="eip155:97",
     signer="<EVM_PRIVATE_KEY>",
 )
 

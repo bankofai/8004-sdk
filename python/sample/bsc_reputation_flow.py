@@ -16,16 +16,14 @@ if OWNER_PRIVATE_KEY.startswith("<") or REVIEWER_PRIVATE_KEY.startswith("<"):
     raise SystemExit("Set OWNER_PRIVATE_KEY and REVIEWER_PRIVATE_KEY in sample/bsc_reputation_flow.py first")
 
 sdk_owner = SDK(
-    chainId=97,
     rpcUrl="https://data-seed-prebsc-1-s1.binance.org:8545",
-    network="evm:bsc",
+    network="eip155:97",
     signer=OWNER_PRIVATE_KEY,
 )
 
 sdk_reviewer = SDK(
-    chainId=97,
     rpcUrl="https://data-seed-prebsc-1-s1.binance.org:8545",
-    network="evm:bsc",
+    network="eip155:97",
     signer=REVIEWER_PRIVATE_KEY,
 )
 

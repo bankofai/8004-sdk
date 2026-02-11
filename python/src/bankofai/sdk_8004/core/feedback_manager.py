@@ -1,5 +1,5 @@
 """
-Feedback management system for Agent0 SDK.
+Feedback management system for BankOfAI 8004 SDK.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class FeedbackManager:
-    """Manages feedback operations for the Agent0 SDK."""
+    """Manages feedback operations for the BankOfAI 8004 SDK."""
 
     def __init__(
         self,

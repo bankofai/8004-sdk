@@ -1,5 +1,5 @@
 """
-Main SDK class for Agent0.
+Main SDK class for BankOfAI 8004 SDK.
 """
 
 from __future__ import annotations
@@ -33,12 +33,12 @@ from .subgraph_client import SubgraphClient
 
 
 class SDK:
-    """Main SDK class for Agent0."""
+    """Main SDK class for BankOfAI 8004 SDK."""
 
     def __init__(
         self,
-        chainId: ChainId,
-        rpcUrl: str,
+        chainId: Optional[ChainId] = None,
+        rpcUrl: Optional[str] = None,
         network: Optional[str] = None,
         feeLimit: int = 10_000_000,
         signer: Optional[Any] = None,  # Optional for read-only operations
@@ -57,16 +57,31 @@ class SDK:
         subgraphOverrides: Optional[Dict[ChainId, str]] = None,  # Override subgraph URLs per chain
     ):
         """Initialize the SDK."""
-        self.chainId = chainId
+        if not rpcUrl:
+            raise ValueError("rpcUrl is required")
         self.rpcUrl = rpcUrl
         self.network = network
         self.feeLimit = int(feeLimit)
         self.signer = signer
         n = (network or "").lower().strip()
+        resolved_chain_id = int(chainId) if chainId is not None else None
+        if n.startswith("eip155:"):
+            try:
+                net_chain_id = int(n.split(":", 1)[1])
+            except ValueError as exc:
+                raise ValueError(f"Invalid EVM network format: {network}. Expected eip155:<chainId>") from exc
+            if resolved_chain_id is not None and resolved_chain_id != net_chain_id:
+                raise ValueError(f"chainId/network mismatch: chainId={chainId}, network={network}")
+            resolved_chain_id = net_chain_id
         if n.startswith("tron:") or n in TRON_NETWORK_ALIASES:
             self.chain_type = "tron"
+            if resolved_chain_id is None:
+                resolved_chain_id = 1
         else:
             self.chain_type = "evm"
+            if resolved_chain_id is None:
+                resolved_chain_id = 97
+        self.chainId = int(resolved_chain_id)
         
         # Initialize Web3 client (with or without signer for read-only operations)
         if signer:
@@ -109,11 +124,11 @@ class SDK:
         if self.chain_type == "tron":
             resolved_subgraph_url = None
         # Priority 1: Chain-specific override
-        elif chainId in self._subgraph_urls:
-            resolved_subgraph_url = self._subgraph_urls[chainId]
+        elif self.chainId in self._subgraph_urls:
+            resolved_subgraph_url = self._subgraph_urls[self.chainId]
         # Priority 2: Default for chain
-        elif chainId in DEFAULT_SUBGRAPH_URLS:
-            resolved_subgraph_url = DEFAULT_SUBGRAPH_URLS[chainId]
+        elif self.chainId in DEFAULT_SUBGRAPH_URLS:
+            resolved_subgraph_url = DEFAULT_SUBGRAPH_URLS[self.chainId]
         else:
             # No subgraph available - subgraph_client will be None
             resolved_subgraph_url = None

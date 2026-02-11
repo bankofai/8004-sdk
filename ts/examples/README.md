@@ -19,6 +19,10 @@ Required:
 - Node.js >= 20
 - Funded key(s) for BSC and/or TRON test networks
 
+BSC CAIP-2 IDs used in examples:
+- `eip155:56` (mainnet)
+- `eip155:97` (testnet)
+
 Notes:
 - Examples mainly use local constants in script files.
 - `.env` is optional for smoke automation, not required for basic runs.
@@ -47,8 +51,7 @@ Example:
 import { SDK } from "@bankofai/8004-sdk";
 
 const sdk = new SDK({
-  chainId: 97,
-  network: "evm:bsc",
+  network: "eip155:97",
   rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
   signer: "<EVM_PRIVATE_KEY>",
 });

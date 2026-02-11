@@ -16,7 +16,7 @@ def _get_taxonomy_path(filename: str) -> Path:
     """Get the path to a taxonomy file."""
     # Get the directory where this file is located
     current_dir = Path(__file__).parent
-    # Go up one level to agent0_sdk, then into taxonomies
+    # Go up one level to sdk_8004, then into taxonomies
     taxonomy_dir = current_dir.parent / "taxonomies"
     return taxonomy_dir / filename
 

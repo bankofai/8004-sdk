@@ -4,6 +4,10 @@ TypeScript SDK for ERC/TRC-8004 with dual-chain support:
 - BSC (EVM)
 - TRON (Nile/Mainnet/Shasta)
 
+BSC CAIP-2 network IDs:
+- `eip155:56` = BSC Mainnet
+- `eip155:97` = BSC Testnet
+
 This package is currently for local development in this monorepo.
 
 ## Install (Local)
@@ -20,8 +24,7 @@ npm run build
 import { SDK } from "@bankofai/8004-sdk";
 
 const sdk = new SDK({
-  chainId: 97,
-  network: "evm:bsc",
+  network: "eip155:97",
   rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
   signer: "<EVM_PRIVATE_KEY>",
 });

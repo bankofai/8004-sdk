@@ -7,6 +7,10 @@ Multi-chain SDK for ERC/TRC-8004 agent registration and reputation.
 - EVM (`web3.py`), including BSC
 - TRON (`tronpy`), including Nile/Mainnet/Shasta
 
+BSC CAIP-2 network IDs:
+- `eip155:56` = BSC Mainnet
+- `eip155:97` = BSC Testnet
+
 Entrypoint:
 
 ```python
@@ -32,9 +36,8 @@ pip install -e .
 from bankofai.sdk_8004.core.sdk import SDK
 
 sdk = SDK(
-    chainId=97,
     rpcUrl="https://data-seed-prebsc-1-s1.binance.org:8545",
-    network="evm:bsc",
+    network="eip155:97",
     signer="<EVM_PRIVATE_KEY>",
 )
 

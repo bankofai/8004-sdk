@@ -3,8 +3,7 @@ import { SDK } from "../src/index.js";
 const PRIVATE_KEY = "<EVM_PRIVATE_KEY>";
 
 const sdk = new SDK({
-  chainId: 97,
-  network: "evm:bsc",
+  network: "eip155:97",
   rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
   signer: PRIVATE_KEY,
 });

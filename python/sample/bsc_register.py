@@ -12,9 +12,8 @@ if BSC_PRIVATE_KEY.startswith("<"):
     raise SystemExit("Set BSC_PRIVATE_KEY in sample/bsc_register.py first")
 
 sdk = SDK(
-    chainId=97,
     rpcUrl="https://data-seed-prebsc-1-s1.binance.org:8545",
-    network="evm:bsc",
+    network="eip155:97",
     signer=BSC_PRIVATE_KEY,
 )
 

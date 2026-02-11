@@ -1,7 +1,7 @@
 {
   "name": "@bankofai/8004-sdk",
   "version": "1.0.0",
-  "description": "TypeScript SDK for 8004 (BSC + TRON)",
+  "description": "TypeScript SDK for 8004",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -31,9 +31,7 @@
   },
   "keywords": [
     "8004",
-    "agent",
-    "bsc",
-    "tron"
+    "agent"
   ],
   "author": "BankOfAI",
   "license": "MIT",

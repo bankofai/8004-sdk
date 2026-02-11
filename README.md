@@ -1,6 +1,6 @@
 # 8004-sdk
 
-Monorepo for ERC/TRC-8004 SDKs.
+Monorepo for 8004 SDKs.
 Current layout includes a Python SDK and a TypeScript SDK.
 
 ## Repository Structure
@@ -23,14 +23,7 @@ cd python
 pip install -e .
 ```
 
-Quick run:
-
-```bash
-python sample/bsc_register.py
-python sample/tron_register.py
-```
-
-More docs:
+Quick start and chain-specific examples:
 - `python/README.md`
 - `python/sample/README.md`
 
@@ -50,14 +43,7 @@ npm install
 npm run build
 ```
 
-Quick run:
-
-```bash
-npx tsx examples/register-bsc.ts
-npx tsx examples/register-tron.ts
-```
-
-More docs:
+Quick start and chain-specific examples:
 - `ts/README.md`
 - `ts/examples/README.md`
 

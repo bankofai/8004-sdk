@@ -1,7 +1,7 @@
 {
   "name": "@bankofai/8004-sdk",
   "version": "1.0.0",
-  "description": "TypeScript SDK for ERC/TRC-8004 (BSC + TRON)",
+  "description": "TypeScript SDK for 8004 (BSC + TRON)",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -30,8 +30,7 @@
     "prepublishOnly": "npm run ci"
   },
   "keywords": [
-    "erc-8004",
-    "trc-8004",
+    "8004",
     "agent",
     "bsc",
     "tron"

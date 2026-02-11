@@ -1,6 +1,6 @@
 # TypeScript Examples Guide
 
-Runnable TypeScript examples for ERC/TRC-8004 flows:
+Runnable TypeScript examples for 8004 flows:
 - Agent registration
 - Wallet management (`setWallet` / `unsetWallet`)
 - Reputation feedback

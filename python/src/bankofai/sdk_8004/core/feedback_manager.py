@@ -155,7 +155,7 @@ class FeedbackManager:
             if not self.ipfs_client:
                 raise ValueError("feedbackFile was provided, but no IPFS client is configured")
 
-            # Store an ERC-8004 compliant feedback file on IPFS (explicit opt-in)
+            # Store an 8004-compliant feedback file on IPFS (explicit opt-in)
             try:
                 logger.debug("Storing feedback file on IPFS")
                 # createdAt MUST be present in the off-chain file; use provided value if valid, else now (UTC).

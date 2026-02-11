@@ -1,6 +1,6 @@
 # Python Samples Guide
 
-Runnable Python examples for ERC/TRC-8004 flows:
+Runnable Python examples for 8004 flows:
 - Agent registration (BSC / TRON)
 - Reputation feedback (BSC / TRON)
 

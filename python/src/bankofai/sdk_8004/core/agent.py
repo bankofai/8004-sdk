@@ -362,7 +362,7 @@ class Agent:
         oasf_endpoint = Endpoint(
             type=EndpointType.OASF,
             value="https://github.com/agntcy/oasf/",
-            # Version string follows ERC-8004 spec example ("0.8")
+            # Version string follows 8004 spec example ("0.8")
             meta={"version": "0.8", "skills": [], "domains": []}
         )
         self.registration_file.endpoints.append(oasf_endpoint)

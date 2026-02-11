@@ -76,6 +76,8 @@ Notes:
 - `examples/reputation-smoke.ts`
 - `examples/validation-smoke.ts`
 
+Detailed guide: `examples/README.md`
+
 Run examples:
 
 ```bash

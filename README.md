@@ -1,34 +1,65 @@
 # tron-8004-sdk
 
-Monorepo-style layout for multi-language SDKs.
+Monorepo for ERC/TRC-8004 SDKs.
+Current layout includes a Python SDK and a TypeScript SDK.
 
-## Structure
+## Repository Structure
 
-- `python/`: Python SDK
-- `ts/`: TypeScript SDK (MVP scaffold)
+- `python/`: Python SDK (`bankofai.erc_8004`)
+- `ts/`: TypeScript SDK (`bankofai-erc-8004-sdk-ts`)
 
-## Quick Start
+## Python SDK
 
-### Python
+Location:
+- `python/`
+
+Entrypoint:
+- `from bankofai.erc_8004.core.sdk import SDK`
+
+Install (local editable):
 
 ```bash
 cd python
 pip install -e .
+```
+
+Quick run:
+
+```bash
 python sample/bsc_register.py
 python sample/tron_register.py
 ```
 
-### TypeScript
+More docs:
+- `python/README.md`
+- `python/sample/README.md`
+
+## TypeScript SDK
+
+Location:
+- `ts/`
+
+Entrypoint:
+- `import { SDK } from "bankofai-erc-8004-sdk-ts"`
+
+Install and build (local):
 
 ```bash
 cd ts
 npm install
 npm run build
+```
+
+Quick run:
+
+```bash
 npx tsx examples/register-bsc.ts
 npx tsx examples/register-tron.ts
 ```
 
-See `python/README.md` and `ts/README.md` for full usage and samples.
+More docs:
+- `ts/README.md`
+- `ts/examples/README.md`
 
 ## Subgraph Status
 

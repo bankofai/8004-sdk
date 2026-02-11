@@ -1,84 +1,123 @@
-# BankOfAI ERC-8004 SDK
+# BankOfAI 8004 SDK (Python)
 
-Multi-chain SDK for ERC/TRC-8004 agent registration and reputation.
+Python SDK for agent identity, discovery, trust, and reputation based on 8004.
 
-## Supports
+This SDK provides a unified API for registration, wallet binding, feedback/reputation, and validation workflows.
 
-- EVM (`web3.py`), including BSC
-- TRON (`tronpy`), including Nile/Mainnet/Shasta
+## What Does This SDK Do?
+
+BankOfAI 8004 SDK enables you to:
+
+- Create and manage agent identities on-chain
+- Register agent metadata using HTTP URI or IPFS (`register()` / `registerIPFS()`)
+- Configure MCP/A2A endpoints, skills, domains, trust models, and custom metadata
+- Manage verified agent wallets (`setWallet()` / `unsetWallet()`)
+- Submit and read feedback (`giveFeedback()`, `getFeedback()`, `searchFeedback()`, `getReputationSummary()`)
+- Trigger and read validation flows (`validationRequest` / `validationResponse` / `getValidationStatus`)
 
 Entrypoint:
 
 ```python
-from bankofai.erc_8004.core.sdk import SDK
+from bankofai.sdk_8004.core.sdk import SDK
 ```
 
-## Install (Local)
+## Installation
 
-Current release supports local install only (not published to PyPI yet).
+### Prerequisites
+
+- Python `>=3.11`
+- `pip`
+- Funded private key for write operations
+- RPC endpoint
+
+### Install from Source (Local)
+
+Current release is local-install only (not published to PyPI yet).
 
 ```bash
-git clone <your-repo-url>
-cd tron-8004-sdk
-cd python
+git clone https://github.com/bankofai/8004-sdk.git
+cd 8004-sdk/python
 pip install -e .
 ```
 
-## Minimal Usage
-
-### BSC Testnet
+## Quick Start
 
 ```python
-from bankofai.erc_8004.core.sdk import SDK
+from bankofai.sdk_8004.core.sdk import SDK
 
 sdk = SDK(
-    chainId=97,
-    rpcUrl="https://data-seed-prebsc-1-s1.binance.org:8545",
-    network="evm:bsc",
-    signer="<EVM_PRIVATE_KEY>",
+    rpcUrl="<RPC_URL>",
+    network="<NETWORK_ID>",  # e.g. eip155:97 or nile
+    signer="<PRIVATE_KEY>",
 )
 
-agent = sdk.createAgent(name="My Agent", description="demo")
+agent = sdk.createAgent(
+    name="My AI Agent",
+    description="Demo agent",
+    image="https://example.com/agent.png",
+)
+
+agent.setMCP("https://mcp.example.com/")
+agent.setA2A("https://a2a.example.com/.well-known/agent-card.json")
+agent.setTrust(reputation=True, cryptoEconomic=True)
+agent.setMetadata({"version": "1.0.0"})
+agent.setActive(True)
+
 tx = agent.register("https://example.com/agent-card.json")
-print(tx.wait_confirmed(timeout=180).result.agentId)
+res = tx.wait_confirmed(timeout=180).result
+print(res.agentId, res.agentURI)
 ```
 
-### TRON Nile
+## Core Flows
+
+### Wallet Management
 
 ```python
-from bankofai.erc_8004.core.sdk import SDK
-
-sdk = SDK(
-    chainId=1,
-    rpcUrl="https://nile.trongrid.io",
-    network="nile",
-    signer="<TRON_PRIVATE_KEY>",
-    feeLimit=120_000_000,
-)
-
-agent = sdk.createAgent(name="My Agent", description="demo")
-tx = agent.register("https://example.com/agent-card.json")
-print(tx.wait_confirmed(timeout=120).result.agentId)
+wallet = agent.getWallet()
+set_tx = agent.setWallet("<NEW_WALLET_ADDRESS>")
+if set_tx:
+    set_tx.wait_confirmed(timeout=180)
 ```
+
+### Feedback and Reputation
+
+```python
+fb_tx = sdk.giveFeedback(agentId="<AGENT_ID>", value=88)
+fb = fb_tx.wait_confirmed(timeout=180).result
+summary = sdk.getReputationSummary("<AGENT_ID>")
+print(fb.id, summary)
+```
+
+### Validation
+
+```python
+req_tx = sdk.validationRequest(
+    validatorAddress="<VALIDATOR_ADDRESS>",
+    agentId="<AGENT_ID>",
+    requestURI="ipfs://QmRequest",
+)
+req = req_tx.wait_confirmed(timeout=180).result
+
+resp_tx = sdk.validationResponse(requestHash=req.requestHash, response=95)
+resp_tx.wait_confirmed(timeout=180)
+```
+
+## Search and Indexing
+
+- `searchAgents()` / `getAgent()` are available in the SDK API.
+- Current release does **not** enable subgraph URL integration by default.
+- Full subgraph-backed search support is planned in a future update.
 
 ## Samples
 
-See runnable scripts in `sample/`:
-
-- `sample/tron_register.py`
-- `sample/bsc_register.py`
-- `sample/tron_reputation_flow.py`
-- `sample/bsc_reputation_flow.py`
-
-Details: `sample/README.md`
+Chain-specific runnable scripts are in `python/sample/`.
+See `python/sample/README.md` for full usage.
 
 ## Notes
 
-- Version starts at `1.0.0` in this repository.
-- `subgraph URL` is not supported in the current release.
-- Subgraph-based search will be supported in a future update.
-- `setWallet()` uses EIP-712-style signature verification on both EVM and TRON.
-- TRON contracts reject self-feedback; use a separate reviewer wallet.
+- Package name: `bankofai-8004-sdk`
+- Python module path: `bankofai.sdk_8004`
+- Contracts reject self-feedback; use a separate reviewer wallet
 
 ## License
 

@@ -1,5 +1,5 @@
 """
-Smart contract ABIs and interfaces for ERC-8004.
+Smart contract ABIs and interfaces for 8004.
 """
 
 from typing import Dict, List, Any
@@ -512,7 +512,7 @@ VALIDATION_REGISTRY_ABI = [
 ]
 
 # Contract registry for different chains
-# Updated addresses from: https://github.com/erc-8004/erc-8004-contracts
+# Updated addresses from the upstream 8004 contracts repository
 DEFAULT_REGISTRIES: Dict[int, Dict[str, str]] = {
     1: {  # Ethereum Mainnet
         "IDENTITY": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",

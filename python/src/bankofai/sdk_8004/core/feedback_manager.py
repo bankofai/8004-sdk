@@ -1,5 +1,5 @@
 """
-Feedback management system for Agent0 SDK.
+Feedback management system for BankOfAI 8004 SDK.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class FeedbackManager:
-    """Manages feedback operations for the Agent0 SDK."""
+    """Manages feedback operations for the BankOfAI 8004 SDK."""
 
     def __init__(
         self,
@@ -155,7 +155,7 @@ class FeedbackManager:
             if not self.ipfs_client:
                 raise ValueError("feedbackFile was provided, but no IPFS client is configured")
 
-            # Store an ERC-8004 compliant feedback file on IPFS (explicit opt-in)
+            # Store an 8004-compliant feedback file on IPFS (explicit opt-in)
             try:
                 logger.debug("Storing feedback file on IPFS")
                 # createdAt MUST be present in the off-chain file; use provided value if valid, else now (UTC).

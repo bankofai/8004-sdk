@@ -3,8 +3,8 @@ import { SDK } from "../src/index.js";
 async function main() {
   const bpk = process.env.BSC_AGENT_PRIVATE_KEY as string;
   const tpk = (process.env.TRON_PRIVATE_KEY || process.env.TRON_AGENT_PRIVATE_KEY || process.env.TRON_OWNER_PRIVATE_KEY) as string;
+  const bsc = new SDK({ network: "eip155:97", rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545", signer: bpk });
 
-  const bsc = new SDK({ chainId: 97, network: "evm:bsc", rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545", signer: bpk });
   const bagent = bsc.createAgent({ name: `TS Wallet BSC ${Date.now()}`, description: "wallet flow test" });
   const brtx = await bagent.register("https://example.com/agent-card.json");
   console.log("BSC_REGISTER_TX", brtx.txHash);

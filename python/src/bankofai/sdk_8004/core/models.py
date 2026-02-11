@@ -1,5 +1,5 @@
 """
-Core data models for the Agent0 SDK.
+Core data models for the BankOfAI 8004 SDK.
 """
 
 from __future__ import annotations

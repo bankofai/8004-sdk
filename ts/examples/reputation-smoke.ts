@@ -5,8 +5,8 @@ async function main() {
   const tpk = (process.env.TRON_PRIVATE_KEY || process.env.TRON_AGENT_PRIVATE_KEY || process.env.TRON_OWNER_PRIVATE_KEY) as string;
   const bReviewer = process.env.BSC_REVIEWER_PRIVATE_KEY;
   const tReviewer = process.env.TRON_REVIEWER_PRIVATE_KEY;
+  const bsc = new SDK({ network: "eip155:97", rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545", signer: bpk });
 
-  const bsc = new SDK({ chainId: 97, network: "evm:bsc", rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545", signer: bpk });
   const bagent = bsc.createAgent({ name: `TS Rep BSC ${Date.now()}`, description: "reputation smoke" });
   const brtx = await bagent.register("https://example.com/agent-card.json");
   const br = await brtx.waitConfirmed({ timeoutMs: 240000 });

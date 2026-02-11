@@ -1,5 +1,5 @@
 """
-Agent0 SDK - Python SDK for agent portability, discovery and trust based on ERC-8004.
+BankOfAI 8004 SDK - Python SDK for agent registration, discovery and trust based on 8004.
 """
 
 from .core.models import (

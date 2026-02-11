@@ -413,6 +413,59 @@ export class TronAdapter implements ChainAdapter {
     return contract[name];
   }
 
+  private toBigIntSafe(value: unknown, field: string): bigint {
+    if (typeof value === "bigint") return value;
+    if (typeof value === "number" && Number.isFinite(value)) return BigInt(Math.trunc(value));
+    if (typeof value === "string") {
+      const s = value.trim();
+      if (s) {
+        if (s.startsWith("0x") || /^[0-9]+$/.test(s)) return BigInt(s);
+      }
+    }
+    if (value && typeof value === "object") {
+      const v = value as Record<string, unknown>;
+      if (typeof v._hex === "string") return BigInt(v._hex);
+      if (typeof v.hex === "string") return BigInt(v.hex);
+      if (typeof v.toString === "function") {
+        const s = String(v.toString());
+        if (s && s !== "[object Object]" && (s.startsWith("0x") || /^[0-9]+$/.test(s))) {
+          return BigInt(s);
+        }
+      }
+    }
+    throw new Error(`Unable to parse bigint field ${field}: ${String(value)}`);
+  }
+
+  private async getValidationStatusViaConstantCall(
+    validationRegistry: string,
+    requestHash: Hex,
+  ): Promise<readonly [string, bigint, number, Hex, string, bigint]> {
+    const callRes = await this.tronWeb.transactionBuilder.triggerConstantContract(
+      validationRegistry,
+      "getValidationStatus(bytes32)",
+      {},
+      [{ type: "bytes32", value: requestHash }],
+      this.readCaller,
+    );
+
+    const raw = (callRes as any)?.constant_result?.[0];
+    if (!raw) throw new Error("TRON constant call returned empty result for getValidationStatus");
+
+    const decoded = (this.tronWeb.utils as any).abi.decodeParams(
+      ["address", "uint256", "uint8", "bytes32", "string", "uint256"],
+      `0x${raw}`,
+    );
+
+    return [
+      this.toChainAddress(String(decoded[0])),
+      this.toBigIntSafe(decoded[1], "agentId"),
+      Number(decoded[2]),
+      String(decoded[3]) as Hex,
+      String(decoded[4] || ""),
+      this.toBigIntSafe(decoded[5], "lastUpdate"),
+    ] as const;
+  }
+
   async registerAgent(identityRegistry: string, abi: Abi, agentURI: string): Promise<string> {
     if (!this.signerAddress) throw new Error("Signer is required for write operations");
 
@@ -605,20 +658,28 @@ export class TronAdapter implements ChainAdapter {
     abi: Abi,
     requestHash: Hex,
   ): Promise<readonly [string, bigint, number, Hex, string, bigint]> {
-    const contract = await this.tronWeb.contract(abi as any, validationRegistry);
-    const method = this.pickMethod(contract, abi, "getValidationStatus", 1);
-    const out = await method(requestHash).call({ from: this.readCaller });
-    const arr = Array.isArray(out)
-      ? out
-      : [out.validatorAddress, out.agentId, out.response, out.responseHash, out.tag, out.lastUpdate];
-    return [
-      this.toChainAddress(String(arr[0])),
-      BigInt(arr[1]),
-      Number(arr[2]),
-      String(arr[3]) as Hex,
-      String(arr[4] || ""),
-      BigInt(arr[5]),
-    ] as const;
+    try {
+      const contract = await this.tronWeb.contract(abi as any, validationRegistry);
+      const method = this.pickMethod(contract, abi, "getValidationStatus", 1);
+      const out = await method(requestHash).call({ from: this.readCaller });
+      const arr = Array.isArray(out)
+        ? out
+        : [out.validatorAddress, out.agentId, out.response, out.responseHash, out.tag, out.lastUpdate];
+      return [
+        this.toChainAddress(String(arr[0])),
+        this.toBigIntSafe(arr[1], "agentId"),
+        Number(arr[2]),
+        String(arr[3]) as Hex,
+        String(arr[4] || ""),
+        this.toBigIntSafe(arr[5], "lastUpdate"),
+      ] as const;
+    } catch (error) {
+      const msg = String((error as any)?.message || error || "");
+      if (msg.toLowerCase().includes("overflow")) {
+        return await this.getValidationStatusViaConstantCall(validationRegistry, requestHash);
+      }
+      throw error;
+    }
   }
 
   async waitForTransaction(txHash: string, opts: TxWaitOptions = {}): Promise<unknown> {
@@ -702,6 +763,7 @@ export class TronAdapter implements ChainAdapter {
 export function resolveChainFromConfig(chainsJson: any, network: string, chainId?: number, rpcUrl?: string): {
   chainType: ChainType;
   resolvedNetwork: string;
+  resolvedChainId: number;
   rpcUrl: string;
   contracts: ChainContracts;
 } {
@@ -715,21 +777,27 @@ export function resolveChainFromConfig(chainsJson: any, network: string, chainId
     return {
       chainType: "tron",
       resolvedNetwork,
+      resolvedChainId: chainId ?? 1,
       rpcUrl: rpcUrl || cfg.fullNode,
       contracts: cfg.contracts,
     };
   }
 
-  if (n.includes("bsc") || chainId === 56 || chainId === 97) {
-    const resolvedNetwork = chainId === 56 ? "mainnet" : "testnet";
+  const eip155 = /^eip155:(\d+)$/.exec(n);
+  const eip155ChainId = eip155 ? Number(eip155[1]) : undefined;
+  const finalChainId = eip155ChainId ?? chainId;
+
+  if (n === "evm" || n.includes("bsc") || finalChainId === 56 || finalChainId === 97) {
+    const resolvedNetwork = finalChainId === 56 ? "mainnet" : "testnet";
     const cfg = chainsJson.bsc.networks[resolvedNetwork];
     return {
       chainType: "evm",
-      resolvedNetwork: `bsc:${resolvedNetwork}`,
+      resolvedNetwork: eip155ChainId ? `eip155:${finalChainId}` : `bsc:${resolvedNetwork}`,
+      resolvedChainId: finalChainId ?? 97,
       rpcUrl: rpcUrl || cfg.rpc,
       contracts: cfg.contracts,
     };
   }
 
-  throw new Error(`Unsupported network: ${network}. Supported: bsc/mainnet/testnet, tron/nile/shasta/mainnet`);
+  throw new Error(`Unsupported network: ${network}. Supported: eip155:56/eip155:97, evm, bsc/mainnet/testnet, tron/nile/shasta/mainnet`);
 }

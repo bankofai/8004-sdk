@@ -196,10 +196,10 @@ class EndpointCrawler:
                 return None
 
             # Try multiple well-known paths for A2A agent cards
-            # Per ERC-8004, endpoint may already be full URL to agent card
+            # Per 8004, endpoint may already be full URL to agent card
             # Per A2A spec section 5.3, recommended discovery path is /.well-known/agent-card.json
             agentcard_urls = [
-                endpoint,  # Try exact URL first (ERC-8004 format: full path to agent card)
+                endpoint,  # Try exact URL first (8004 format: full path to agent card)
                 f"{endpoint}/.well-known/agent-card.json",  # Spec-recommended discovery path
                 f"{endpoint.rstrip('/')}/.well-known/agent-card.json",
                 f"{endpoint}/.well-known/agent.json",  # Alternative well-known path

@@ -20,7 +20,7 @@ class TronContractRef:
 
 
 class Web3Client:
-    """Unified chain client for ERC/TRC-8004 contracts."""
+    """Unified chain client for 8004 contracts."""
 
     def __init__(
         self,

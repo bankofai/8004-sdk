@@ -1,34 +1,51 @@
-# tron-8004-sdk
+# 8004-sdk
 
-Monorepo-style layout for multi-language SDKs.
+Monorepo for 8004 SDKs.
+Current layout includes a Python SDK and a TypeScript SDK.
 
-## Structure
+## Repository Structure
 
-- `python/`: Python SDK
-- `ts/`: TypeScript SDK (MVP scaffold)
+- `python/`: Python SDK (`bankofai.sdk_8004`)
+- `ts/`: TypeScript SDK (`@bankofai/8004-sdk`)
 
-## Quick Start
+## Python SDK
 
-### Python
+Location:
+- `python/`
+
+Entrypoint:
+- `from bankofai.sdk_8004.core.sdk import SDK`
+
+Install (local editable):
 
 ```bash
 cd python
 pip install -e .
-python sample/bsc_register.py
-python sample/tron_register.py
 ```
 
-### TypeScript
+Quick start and chain-specific examples:
+- `python/README.md`
+- `python/sample/README.md`
+
+## TypeScript SDK
+
+Location:
+- `ts/`
+
+Entrypoint:
+- `import { SDK } from "@bankofai/8004-sdk"`
+
+Install and build (local):
 
 ```bash
 cd ts
 npm install
 npm run build
-npx tsx examples/register-bsc.ts
-npx tsx examples/register-tron.ts
 ```
 
-See `python/README.md` and `ts/README.md` for full usage and samples.
+Quick start and chain-specific examples:
+- `ts/README.md`
+- `ts/examples/README.md`
 
 ## Subgraph Status
 

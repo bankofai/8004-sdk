@@ -1,92 +1,125 @@
-# BankOfAI ERC-8004 SDK (TypeScript)
+# BankOfAI 8004 SDK (TypeScript)
 
-TypeScript SDK for ERC/TRC-8004 with dual-chain support:
-- BSC (EVM)
-- TRON (Nile/Mainnet/Shasta)
+TypeScript SDK for agent identity, discovery, trust, and reputation based on 8004.
 
-This package is currently for local development in this monorepo.
+This SDK provides a unified API for registration, wallet binding, feedback/reputation, and validation workflows.
 
-## Install (Local)
+## What Does This SDK Do?
+
+BankOfAI 8004 SDK enables you to:
+
+- Create and manage on-chain agent identities
+- Register agent card URIs on-chain (`agent.register()`)
+- Configure MCP/A2A endpoints, skills/domains, trust flags, metadata, and status
+- Manage verified wallet binding (`agent.getWallet()`, `agent.setWallet()`, `agent.unsetWallet()`)
+- Submit and read feedback (`giveFeedback()`, `getFeedback()`, `getReputationSummary()`)
+- Run validation request/response flows (`validationRequest()`, `validationResponse()`, `getValidationStatus()`)
+
+Package import:
+
+```ts
+import { SDK } from "@bankofai/8004-sdk";
+```
+
+## Installation
+
+### Prerequisites
+
+- Node.js `>=20`
+- npm
+- Funded private key for write operations
+- RPC endpoint
+
+### Install from Source (Local)
 
 ```bash
-cd tron-8004-sdk/ts
+git clone https://github.com/bankofai/8004-sdk.git
+cd 8004-sdk/ts
 npm install
 npm run build
 ```
 
-## Usage
+## Quick Start
 
 ```ts
-import { SDK } from "bankofai-erc-8004-sdk-ts";
+import { SDK } from "@bankofai/8004-sdk";
 
 const sdk = new SDK({
-  chainId: 97,
-  network: "evm:bsc",
-  rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
-  signer: "<EVM_PRIVATE_KEY>",
+  network: "<NETWORK_ID>", // e.g. eip155:97 or nile
+  rpcUrl: "<RPC_URL>",
+  signer: "<PRIVATE_KEY>",
 });
 
 const agent = sdk.createAgent({
-  name: "My Agent",
-  description: "demo",
+  name: "My AI Agent",
+  description: "Demo agent",
+  image: "https://example.com/agent.png",
 });
+
+agent.setMCP("https://mcp.example.com/");
+agent.setA2A("https://a2a.example.com/.well-known/agent-card.json");
+agent.setTrust({ reputation: true, cryptoEconomic: true });
+agent.setMetadata({ version: "1.0.0" });
+agent.setActive(true);
 
 const tx = await agent.register("https://example.com/agent-card.json");
 const mined = await tx.waitConfirmed({ timeoutMs: 180_000 });
-console.log(mined.result.agentId);
+console.log(mined.result.agentId, mined.result.agentURI);
 ```
 
-TRON usage is the same pattern:
+## Core Flows
+
+### Wallet Management
 
 ```ts
-const sdk = new SDK({
-  chainId: 1,
-  network: "nile",
-  rpcUrl: "https://nile.trongrid.io",
-  signer: "<TRON_PRIVATE_KEY>",
-  feeLimit: 120_000_000,
-});
+const wallet = await agent.getWallet();
+const setTx = await agent.setWallet("<NEW_WALLET_ADDRESS>");
+if (setTx) await setTx.waitConfirmed({ timeoutMs: 180_000 });
 ```
 
-## Features (MVP)
+### Feedback and Reputation
 
-- Network/config resolution from `resource/chains.json`
-- ABI loading from `resource/contract_abis.json`
-- `SDK` + `Agent` API
-- `createAgent()`
-- `agent.register()`
-- `agent.getWallet()`
-- `agent.setWallet()` (EIP-712 typed-data signature path for EVM and TRON)
-- `agent.unsetWallet()`
-- `sdk.giveFeedback()` / `sdk.getFeedback()` / `sdk.getReputationSummary()`
-- `sdk.validationRequest()` / `sdk.validationResponse()` / `sdk.getValidationStatus()`
-- `sdk.searchAgents()` / `sdk.getAgent()` API placeholders
-- Cross-chain adapters (Viem for EVM, TronWeb for TRON)
+```ts
+const fbTx = await sdk.giveFeedback({ agentId: "<AGENT_ID>", value: 88 });
+const fb = await fbTx.waitConfirmed({ timeoutMs: 180_000 });
+const summary = await sdk.getReputationSummary("<AGENT_ID>");
+console.log(fb.result, summary);
+```
 
-Notes:
-- Contracts reject self-feedback. Use `reviewerSigner` in `giveFeedback()` with a separate funded wallet.
-- `subgraph URL` is not supported in the current release.
-- Subgraph-based search will be supported in a future update.
+### Validation
+
+```ts
+const reqTx = await sdk.validationRequest({
+  validatorAddress: "<VALIDATOR_ADDRESS>",
+  agentId: "<AGENT_ID>",
+  requestURI: "ipfs://QmRequest",
+});
+const req = await reqTx.waitConfirmed({ timeoutMs: 180_000 });
+
+const respTx = await sdk.validationResponse({
+  requestHash: req.result.requestHash,
+  response: 95,
+});
+await respTx.waitConfirmed({ timeoutMs: 180_000 });
+```
+
+## Search and Indexing
+
+- `searchAgents()` / `getAgent()` APIs exist in the SDK.
+- Current release does **not** enable subgraph URL integration by default.
+- Full subgraph-backed search support is planned in a future update.
 
 ## Examples
 
-- `examples/register-bsc.ts`
-- `examples/register-tron.ts`
-- `examples/wallet-smoke.ts`
-- `examples/reputation-smoke.ts`
-- `examples/validation-smoke.ts`
-
-Run examples:
-
-```bash
-npx tsx examples/register-bsc.ts
-npx tsx examples/register-tron.ts
-npx tsx examples/wallet-smoke.ts
-npx tsx examples/reputation-smoke.ts
-npx tsx examples/validation-smoke.ts
-```
+Chain-specific runnable scripts are in `ts/examples/`.
+See `ts/examples/README.md` for full usage.
 
 ## Notes
 
-- This is an MVP scaffold aligned to the current Python SDK architecture.
-- Advanced methods (reputation/search/validation helpers/full parity with python) are planned next.
+- Package name: `@bankofai/8004-sdk`
+- ESM package (`"type": "module"`)
+- Contracts reject self-feedback; use a separate reviewer wallet
+
+## License
+
+MIT

@@ -1,4 +1,4 @@
-# BankOfAI ERC-8004 SDK (TypeScript)
+# BankOfAI 8004 SDK (TypeScript)
 
 TypeScript SDK for ERC/TRC-8004 with dual-chain support:
 - BSC (EVM)
@@ -9,7 +9,7 @@ This package is currently for local development in this monorepo.
 ## Install (Local)
 
 ```bash
-cd tron-8004-sdk/ts
+cd 8004-sdk/ts
 npm install
 npm run build
 ```
@@ -17,7 +17,7 @@ npm run build
 ## Usage
 
 ```ts
-import { SDK } from "bankofai-erc-8004-sdk-ts";
+import { SDK } from "@bankofai/8004-sdk";
 
 const sdk = new SDK({
   chainId: 97,

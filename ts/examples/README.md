@@ -8,7 +8,7 @@ Runnable TypeScript examples for ERC/TRC-8004 flows:
 
 ## 1. Prerequisites
 
-Run from `tron-8004-sdk/ts`:
+Run from `8004-sdk/ts`:
 
 ```bash
 npm install
@@ -44,7 +44,7 @@ All examples use the same build order:
 Example:
 
 ```ts
-import { SDK } from "bankofai-erc-8004-sdk-ts";
+import { SDK } from "@bankofai/8004-sdk";
 
 const sdk = new SDK({
   chainId: 97,

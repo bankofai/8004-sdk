@@ -1,4 +1,4 @@
-# tron-8004-sdk
+# 8004-sdk
 
 Monorepo for ERC/TRC-8004 SDKs.
 Current layout includes a Python SDK and a TypeScript SDK.
@@ -6,7 +6,7 @@ Current layout includes a Python SDK and a TypeScript SDK.
 ## Repository Structure
 
 - `python/`: Python SDK (`bankofai.erc_8004`)
-- `ts/`: TypeScript SDK (`bankofai-erc-8004-sdk-ts`)
+- `ts/`: TypeScript SDK (`@bankofai/8004-sdk`)
 
 ## Python SDK
 
@@ -40,7 +40,7 @@ Location:
 - `ts/`
 
 Entrypoint:
-- `import { SDK } from "bankofai-erc-8004-sdk-ts"`
+- `import { SDK } from "@bankofai/8004-sdk"`
 
 Install and build (local):
 

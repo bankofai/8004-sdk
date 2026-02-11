@@ -6,7 +6,7 @@ Runnable Python examples for ERC/TRC-8004 flows:
 
 ## 1. Prerequisites
 
-Run from `tron-8004-sdk/python`:
+Run from `8004-sdk/python`:
 
 ```bash
 pip install -e .

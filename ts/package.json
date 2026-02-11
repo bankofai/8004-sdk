@@ -1,5 +1,5 @@
 {
-  "name": "bankofai-erc-8004-sdk-ts",
+  "name": "@bankofai/8004-sdk",
   "version": "1.0.0",
   "description": "TypeScript SDK for ERC/TRC-8004 (BSC + TRON)",
   "type": "module",

@@ -1,4 +1,4 @@
-# BankOfAI ERC-8004 SDK
+# BankOfAI 8004 SDK (Python)
 
 Multi-chain SDK for ERC/TRC-8004 agent registration and reputation.
 
@@ -19,7 +19,7 @@ Current release supports local install only (not published to PyPI yet).
 
 ```bash
 git clone <your-repo-url>
-cd tron-8004-sdk
+cd 8004-sdk
 cd python
 pip install -e .
 ```

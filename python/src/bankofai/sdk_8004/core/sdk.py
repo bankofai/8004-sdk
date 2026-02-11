@@ -8,15 +8,11 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Union, Literal
-from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 
-logger = logging.getLogger(__name__)
-TRON_NETWORK_ALIASES = {"tron", "mainnet", "nile", "shasta"}
-
+from .subgraph_client import SubgraphClient
 from .models import (
-    AgentId, ChainId, Address, URI, Timestamp, IdemKey,
-    EndpointType, TrustModel, Endpoint, RegistrationFile,
+    AgentId, ChainId, Address, URI, TrustModel, RegistrationFile,
     AgentSummary, Feedback, SearchFilters, SearchOptions, FeedbackFilters
 )
 from .web3_client import Web3Client
@@ -29,7 +25,9 @@ from .indexer import AgentIndexer
 from .ipfs_client import IPFSClient
 from .feedback_manager import FeedbackManager
 from .transaction_handle import TransactionHandle
-from .subgraph_client import SubgraphClient
+
+logger = logging.getLogger(__name__)
+TRON_NETWORK_ALIASES = {"tron", "mainnet", "nile", "shasta"}
 
 
 class SDK:
@@ -425,7 +423,7 @@ class SDK:
                 # If wallet is read from on-chain, use current chain ID
                 # (the chain ID from the registration file might be outdated)
                 registration_file.walletChainId = self.chainId
-        except Exception as e:
+        except Exception:
             # No on-chain wallet set, will fall back to registration file
             pass
         
@@ -450,7 +448,7 @@ class SDK:
                     meta={"version": "1.0"}
                 )
                 registration_file.endpoints.append(ens_endpoint)
-        except Exception as e:
+        except Exception:
             # No on-chain ENS name, will fall back to registration file
             pass
         
@@ -474,17 +472,17 @@ class SDK:
                     # Try to convert back to original type if possible
                     try:
                         # Try integer
-                        value_int = int(value_str)
+                        int(value_str)
                         # Check if it's actually stored as integer in metadata or if it was originally a string
                         registration_file.metadata[key] = value_str  # Keep as string for now
                     except ValueError:
                         # Try float
                         try:
-                            value_float = float(value_str)
+                            float(value_str)
                             registration_file.metadata[key] = value_str  # Keep as string for now
                         except ValueError:
                             registration_file.metadata[key] = value_str
-            except Exception as e:
+            except Exception:
                 # Keep registration file value if on-chain not found
                 pass
 

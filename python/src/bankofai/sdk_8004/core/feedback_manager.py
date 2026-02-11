@@ -7,12 +7,11 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timezone
 
 from .models import (
-    AgentId, Address, URI, Timestamp, IdemKey,
-    Feedback, TrustModel, SearchFeedbackParams
+    AgentId, Address, Feedback, SearchFeedbackParams
 )
 from .web3_client import Web3Client
 from .ipfs_client import IPFSClient
@@ -706,7 +705,6 @@ class FeedbackManager:
             tokenId = int(agentId)
         
         # Prepare response data
-        responseText = response.get("text", "")
         responseUri = ""
         responseHash = b"\x00" * 32
         
@@ -1041,7 +1039,7 @@ class FeedbackManager:
                     tag1_str = hex_bytes.rstrip(b'\x00').decode('utf-8', errors='ignore')
                     if tag1_str:
                         tags.append(tag1_str)
-                except Exception as e:
+                except Exception:
                     pass  # Ignore invalid hex strings
         
         if tag2 and tag2 != "0x" + "00" * 32:
@@ -1059,7 +1057,7 @@ class FeedbackManager:
                     tag2_str = hex_bytes.rstrip(b'\x00').decode('utf-8', errors='ignore')
                     if tag2_str:
                         tags.append(tag2_str)
-                except Exception as e:
+                except Exception:
                     pass  # Ignore invalid hex strings
         
         return tags

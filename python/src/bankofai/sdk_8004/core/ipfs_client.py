@@ -12,8 +12,10 @@ import logging
 import subprocess
 import tempfile
 import os
-import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .models import RegistrationFile
 
 try:
     import ipfshttpclient
@@ -228,7 +230,7 @@ class IPFSClient:
             # Clean up temporary file
             try:
                 os.unlink(temp_path)
-            except:
+            except Exception:
                 pass
 
     def add(self, data: str, **kwargs) -> str:
@@ -292,7 +294,7 @@ class IPFSClient:
                     except Exception:
                         continue
                 
-                raise RuntimeError(f"Failed to retrieve data from all IPFS gateways")
+                raise RuntimeError("Failed to retrieve data from all IPFS gateways")
             except Exception as e:
                 raise RuntimeError(f"Failed to retrieve data from IPFS gateway: {e}")
         else:

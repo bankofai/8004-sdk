@@ -28,7 +28,6 @@ it delegates most queries to the subgraph, it is designed to be the foundation f
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 import aiohttp
@@ -36,14 +35,13 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 
 from .models import (
-    AgentId, ChainId, Address, URI, Timestamp,
+    AgentId, Address, Timestamp,
     AgentSummary, Feedback, SearchFilters, SearchOptions, SearchFeedbackParams
 )
 from .web3_client import Web3Client
+from .semantic_search_client import SemanticSearchClient
 
 logger = logging.getLogger(__name__)
-
-from .semantic_search_client import SemanticSearchClient
 
 
 class AgentIndexer:

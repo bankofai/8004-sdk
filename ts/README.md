@@ -143,7 +143,8 @@ await respTx.waitConfirmed({ timeoutMs: 180_000 });
 
 ## Search and Indexing
 
-- `searchAgents()` / `getAgent()` APIs exist in the SDK.
+- `loadAgent(agentId)` reads directly from on-chain data and works without subgraph.
+- `getAgent(agentId)` / `searchAgents()` are index-based APIs and depend on subgraph.
 - `searchFeedback()` is available when subgraph is configured.
 - Current release does **not** enable subgraph URL integration by default.
 - Full subgraph-backed search support is planned in a future update.

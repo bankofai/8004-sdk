@@ -1,2 +1,0 @@
-"""BankOfAI namespace package."""
-

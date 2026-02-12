@@ -49,5 +49,6 @@ Quick start and chain-specific examples:
 
 ## Subgraph Status
 
-Subgraph URL integration is not supported in the current release.
-It is planned for a future update.
+- `loadAgent(agentId)` works today via direct on-chain reads.
+- `getAgent()` / `searchAgents()` are index/subgraph-based and are limited until subgraph integration is enabled.
+- Full subgraph URL integration is planned for a future update.

@@ -104,7 +104,8 @@ resp_tx.wait_confirmed(timeout=180)
 
 ## Search and Indexing
 
-- `searchAgents()` / `getAgent()` are available in the SDK API.
+- `loadAgent(agentId)` reads directly from on-chain data and works without subgraph.
+- `getAgent(agentId)` / `searchAgents()` are index-based APIs and depend on subgraph.
 - Current release does **not** enable subgraph URL integration by default.
 - Full subgraph-backed search support is planned in a future update.
 
